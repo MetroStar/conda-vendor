@@ -212,7 +212,7 @@ def test_format_manifest():
 
 def test_conda_vendor_artifacts_from_specs():
     specs = ["python=3.9.5"]
-    actual_result = vendor_artifacts_from_specs(specs)
+    actual_result = conda_vendor_artifacts_from_specs(specs)
     expected_result = vendor_manifest_dict()
     assert len(actual_result["resources"]) == len(expected_result["resources"])
 
