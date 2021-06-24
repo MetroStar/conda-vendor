@@ -100,10 +100,12 @@ class CondaChannel:
         return manifest_list
 
 
-def fetch_repodata(package_file_names_list, requests=requests):
+def fetch_repodata(package_file_names_list, requests=requests, platform="linux-64"):
     conda_channel = CondaChannel()
     conda_channel.fetch()
-    filtered_content = conda_channel.filter_repodata(package_file_names_list)
+    filtered_content = conda_channel.filter_repodata(
+        package_file_names_list, platform=platform
+    )
 
     return filtered_content
 
