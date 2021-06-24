@@ -4,12 +4,15 @@ from unittest.mock import Mock
 import pytest
 import requests
 from requests import Response
+import os
 
 from conda_vendor.core import (
     conda_vendor_artifacts_from_specs,
     fetch_repodata,
     parse_environment,
     CondaChannel,
+    create_channel_directories,
+    download_and_validate,
 )
 from tests.repodata_fixture import (
     vendor_manifest_dict,
@@ -218,3 +221,50 @@ def test_conda_vendor_artifacts_from_specs():
 
 
 #  assert actual_result["resources"][0] == expected_result["resources"][6]
+
+
+def test_create_channel_directories(tmp_path):
+    returned_local_channel = create_channel_directories(str(tmp_path.absolute()))
+
+    expected_root_dir = tmp_path / "local_channel"
+    expected_linux_dir = expected_root_dir / "linux-64"
+    expected_noarch_dir = expected_root_dir / "noarch"
+
+    assert expected_root_dir.is_dir()
+    assert expected_linux_dir.is_dir()
+    assert expected_noarch_dir.is_dir()
+    assert returned_local_channel == expected_root_dir
+
+
+@pytest.fixture
+def mock_requests_download():
+    requests_mock = Mock(spec=requests)
+    #    requests_mock.get.return_value =
+    return requests_mock
+
+
+def test_download_and_validate(mock_requests_download, tmp_path):
+    local_channel_pathlib = create_channel_directories(str(tmp_path.absolute()))
+
+    manifest_dict = {
+        "resources": [
+            {
+                "url": "https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda",
+                "name": "_libgcc_mutex-0.1-main.conda",
+                "validation": {
+                    "type": "sha256",
+                    "value": "476626712f60e5ef0fe04c354727152b1ee5285d57ccd3575c7be930122bd051",
+                },
+            }
+        ]
+    }
+
+    mocked_results = download_and_validate(
+        manifest_dict, local_channel_pathlib, requests=mock_requests_download
+    )
+
+    assert (
+        mocked_results
+        == "https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda"
+    )
+    # mock_requests_download.get.assert_called_with(vendor_manifest_dict())

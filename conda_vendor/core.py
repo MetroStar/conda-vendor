@@ -1,6 +1,6 @@
 import json
 import subprocess
-
+import pathlib
 import requests
 import yaml
 from conda_lock.conda_lock import solve_specs_for_arch
@@ -162,3 +162,34 @@ def conda_vendor_artifacts_from_specs(specs):
     # import ipdp; ipdb.set_trace()
 
     return manifest_dict
+
+
+def create_channel_directories(channel_path="./"):
+    channel_root = pathlib.Path(channel_path)
+    local_channel = channel_root / "local_channel"
+    local_channel.mkdir()
+
+    linux_dir = local_channel / "linux-64"
+    linux_dir.mkdir()
+
+    noarch_channel = local_channel / "noarch"
+    noarch_channel.mkdir()
+
+    return local_channel
+
+
+def download_and_validate(manifest_dict, local_channel_obj, requests=requests):
+
+    resources_list = manifest_dict["resources"]
+    linux_dir = local_channel_obj / "linux-64"
+    noarch_channel = local_channel_obj / "noarch"
+
+    for resource in resources_list:
+        url = resource["url"]
+        url_data = requests.get(url)
+        if "noarch" in url:
+            with open(noarch_channel / resource["name"], "wb") as f:
+                f.write(url_data)
+        else:
+            with open(linux_dir / resource["name"], "wb") as f:
+                f.write(url_data)
