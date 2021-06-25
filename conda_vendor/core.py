@@ -185,9 +185,9 @@ def download_and_validate(manifest_dict, local_channel_obj, requests=requests):
     noarch_channel = local_channel_obj / "noarch"
 
     for resource in resources_list:
-        url = resource["url"]
-        url_data = requests.get(url)
-        if "noarch" in url:
+        url_data = requests.get(resource["url"])
+        print(url_data)
+        if "noarch" in resource['url']:
             with open(noarch_channel / resource["name"], "wb") as f:
                 f.write(url_data)
         else:

@@ -239,7 +239,7 @@ def test_create_channel_directories(tmp_path):
 @pytest.fixture
 def mock_requests_download():
     requests_mock = Mock(spec=requests)
-    #    requests_mock.get.return_value =
+    requests_mock.get.return_value = bytearray([9, 9, 9]) 
     return requests_mock
 
 
@@ -259,12 +259,13 @@ def test_download_and_validate(mock_requests_download, tmp_path):
         ]
     }
 
-    mocked_results = download_and_validate(
+    download_and_validate(
         manifest_dict, local_channel_pathlib, requests=mock_requests_download
     )
+    mock_requests_download.get.assert_called()
+    mock_requests_download.get.call_args.args == manifest_dict['resources'][0]['url']
 
-    assert (
-        mocked_results
-        == "https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda"
-    )
-    # mock_requests_download.get.assert_called_with(vendor_manifest_dict())
+    file_name = manifest_dict['resources'][0]['name']
+    with open(local_channel_pathlib / 'linux-64' / file_name, 'rb') as f:
+        file_data = f.read()
+    assert mock_requests_download.get.return_value == file_data
