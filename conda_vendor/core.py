@@ -28,7 +28,7 @@ class CondaChannel:
     def __init__(self, platforms=["linux-64", "noarch"]):
         self.base_url = "https://repo.anaconda.com/pkgs/main/"
         self.platforms = platforms
-        self._repodata = None
+        self._repodata_dict = None
 
     def fetch(self, requests=requests):
         repodata = {}
@@ -36,16 +36,16 @@ class CondaChannel:
             repodata_url = self.base_url + platform + "/repodata.json"
             repodata[platform] = requests.get(repodata_url).json()
 
-        self._repodata = repodata
+        self._repodata_dict = repodata
 
     def _add_repodata_info(self, contents, platform="linux-64"):
-        contents["info"] = self._repodata[platform]["info"]
+        contents["info"] = self._repodata_dict[platform]["info"]
         return contents
 
     def filter_repodata(self, package_list, platform="linux-64"):
         filtered_content = {}
-        packages = self._repodata[platform]["packages"]
-        conda_packages = self._repodata[platform]["packages.conda"]
+        packages = self._repodata_dict[platform]["packages"]
+        conda_packages = self._repodata_dict[platform]["packages.conda"]
 
         for pkg_name in package_list:
             if pkg_name in packages.keys():
@@ -64,7 +64,7 @@ class CondaChannel:
     def create_dot_conda_and_tar_pkg_list(self, match_list, platform="linux-64"):
         dot_conda_channel_pkgs = [
             pkg.split(".conda")[0]
-            for pkg in self._repodata[platform]["packages.conda"].keys()
+            for pkg in self._repodata_dict[platform]["packages.conda"].keys()
         ]
 
         desired_pkg_extension_list = []
@@ -92,7 +92,7 @@ class CondaChannel:
                     "name": f"{pkg}",
                     "validation": {
                         "type": "sha256",
-                        "value": self._repodata[platform][pkg_type][pkg]["sha256"],
+                        "value": self._repodata_dict[platform][pkg_type][pkg]["sha256"],
                     },
                 }
             )
@@ -130,7 +130,7 @@ def conda_vendor_artifacts_from_specs(specs):
 
     conda_channel = CondaChannel()
     conda_channel.fetch()
-    repodata = conda_channel._repodata["linux-64"]
+    repodata = conda_channel._repodata_dict["linux-64"]
 
     linux_64_pkg_names = [
         link["dist_name"] for link in link_actions if link["platform"] == "linux-64"
@@ -179,7 +179,8 @@ def create_channel_directories(channel_path="./"):
 
 
 def download_and_validate(manifest_dict, local_channel_obj, requests=requests):
-
+    # Not currently validating files
+    # Create a separate function for validation
     resources_list = manifest_dict["resources"]
     linux_dir = local_channel_obj / "linux-64"
     noarch_channel = local_channel_obj / "noarch"
@@ -187,7 +188,7 @@ def download_and_validate(manifest_dict, local_channel_obj, requests=requests):
     for resource in resources_list:
         url_data = requests.get(resource["url"])
         print(url_data)
-        if "noarch" in resource['url']:
+        if "noarch" in resource["url"]:
             with open(noarch_channel / resource["name"], "wb") as f:
                 f.write(url_data)
         else:

@@ -1,6 +1,8 @@
 import yaml
+import pytest
 
 
+@pytest.fixture
 def repodata_output():
     return {
         "info": {"subdir": "linux-64"},
@@ -628,6 +630,7 @@ def conda_solve_output():
     }
 
 
+@pytest.fixture
 def python_395_pkg_list():
     return [
         "_libgcc_mutex-0.1-main",
@@ -649,6 +652,7 @@ def python_395_pkg_list():
     ]
 
 
+@pytest.fixture
 def dot_conda_and_tar_list():
     return [
         "_libgcc_mutex-0.1-main.conda",

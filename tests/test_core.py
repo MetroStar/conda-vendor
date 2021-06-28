@@ -18,6 +18,7 @@ from tests.repodata_fixture import (
     vendor_manifest_dict,
     dot_conda_and_tar_list,
     python_395_pkg_list,
+    repodata_output,
 )
 
 
@@ -177,23 +178,32 @@ def test_parse_environment_file(minimal_environment):
     assert actual_output == expected_output
 
 
-def test_create_dot_conda_and_tar_pkg_list():
+@pytest.fixture
+def conda_channel_fixture():
     conda_channel = CondaChannel()
-    conda_channel.fetch()
-    actual_result = conda_channel.create_dot_conda_and_tar_pkg_list(
-        python_395_pkg_list()
-    )
 
-    expected_result = dot_conda_and_tar_list()
+    return conda_channel
+
+
+def test_create_dot_conda_and_tar_pkg_list(
+    conda_channel_fixture, python_395_pkg_list, dot_conda_and_tar_list, repodata_output
+):
+    test_conda_channel = conda_channel_fixture
+    test_conda_channel._repodata_dict = {"linux-64": repodata_output}
+
+    actual_result = test_conda_channel.create_dot_conda_and_tar_pkg_list(
+        python_395_pkg_list
+    )
+    expected_result = dot_conda_and_tar_list
 
     assert set(actual_result) == set(expected_result)
 
 
-def test_format_manifest():
-    conda_channel = CondaChannel()
-    conda_channel.fetch()
+def test_format_manifest(conda_channel_fixture, repodata_output):
+    test_conda_channel = conda_channel_fixture
+    test_conda_channel._repodata_dict = {"linux-64": repodata_output}
 
-    actual_result = conda_channel.format_manifest(
+    actual_result = test_conda_channel.format_manifest(
         ["python-3.9.5-h12debd9_4.tar.bz2"],
         base_url="https://repo.anaconda.com/pkgs/main",
         platform="linux-64",
@@ -239,14 +249,18 @@ def test_create_channel_directories(tmp_path):
 @pytest.fixture
 def mock_requests_download():
     requests_mock = Mock(spec=requests)
-    requests_mock.get.return_value = bytearray([9, 9, 9]) 
+    requests_mock.get.return_value = bytearray([9, 9, 9])
     return requests_mock
 
 
 def test_download_and_validate(mock_requests_download, tmp_path):
-    local_channel_pathlib = create_channel_directories(str(tmp_path.absolute()))
+    test_linux_path = tmp_path / "linux-64"
+    test_linux_path.mkdir()
 
-    manifest_dict = {
+    test_noarch_path = tmp_path / "noarch"
+    test_noarch_path.mkdir()
+
+    test_manifest_dict = {
         "resources": [
             {
                 "url": "https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda",
@@ -255,17 +269,47 @@ def test_download_and_validate(mock_requests_download, tmp_path):
                     "type": "sha256",
                     "value": "476626712f60e5ef0fe04c354727152b1ee5285d57ccd3575c7be930122bd051",
                 },
-            }
+            },
+            {
+                "url": "https://repo.anaconda.com/pkgs/main/noarch/tzdata-2020f-h52ac0ba_0.conda",
+                "name": "tzdata-2020f-h52ac0ba_0.conda",
+                "validation": {
+                    "type": "sha256",
+                    "value": "6635dd74510ab7c399d43781e866c977d7d715147e942f10a21aed4f00251f80",
+                },
+            },
         ]
     }
 
-    download_and_validate(
-        manifest_dict, local_channel_pathlib, requests=mock_requests_download
+    expected_linux_package_path = (
+        test_linux_path / test_manifest_dict["resources"][0]["name"]
     )
-    mock_requests_download.get.assert_called()
-    mock_requests_download.get.call_args.args == manifest_dict['resources'][0]['url']
+    expected_linux_package_file_name = test_manifest_dict["resources"][0]["name"]
 
-    file_name = manifest_dict['resources'][0]['name']
-    with open(local_channel_pathlib / 'linux-64' / file_name, 'rb') as f:
-        file_data = f.read()
-    assert mock_requests_download.get.return_value == file_data
+    expected_noarch_package_path = (
+        test_noarch_path / test_manifest_dict["resources"][1]["name"]
+    )
+    expected_noarch_package_file_name = test_manifest_dict["resources"][1]["name"]
+
+    expected_file_data = mock_requests_download.get.return_value
+
+    download_and_validate(test_manifest_dict, tmp_path, requests=mock_requests_download)
+
+    assert expected_linux_package_path.exists()
+    assert expected_noarch_package_path.exists()
+
+    assert mock_requests_download.get.call_count == 2
+    for i, call in enumerate(mock_requests_download.get.call_args_list):
+        args, kwargs = call
+        assert args[0] == test_manifest_dict["resources"][i]["url"]
+
+    file_name = test_manifest_dict["resources"][0]["name"]
+    with open(tmp_path / "linux-64" / expected_linux_package_file_name, "rb") as f:
+        result_linux_file_data = f.read()
+
+    assert expected_file_data == result_linux_file_data
+
+    with open(tmp_path / "noarch" / expected_noarch_package_file_name, "rb") as f:
+        result_no_arch_file_data = f.read()
+
+    assert expected_file_data == result_no_arch_file_data
