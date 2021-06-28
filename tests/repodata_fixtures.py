@@ -258,7 +258,7 @@ def repodata_output():
         "repodata_version": 1,
     }
 
-
+@pytest.fixture
 def vendor_manifest_dict():
     return {
         "resources": [
@@ -401,11 +401,11 @@ def vendor_manifest_dict():
         ]
     }
 
-
+@pytest.fixture
 def vendor_manifest():
     return yaml.dump(vendor_manifest_dict())
 
-
+@pytest.fixture
 def conda_solve_output():
     return {
         "actions": {

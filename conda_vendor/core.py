@@ -178,9 +178,8 @@ def create_channel_directories(channel_path="./"):
     return local_channel
 
 
-def download_and_validate(manifest_dict, local_channel_obj, requests=requests):
-    # Not currently validating files
-    # Create a separate function for validation
+def download_and_validate(manifest_dict, local_channel_obj , requests=requests) -> None :
+    # TODO: validate the sha 256 in seperate function, Not currently validating files ONLY download. 
     resources_list = manifest_dict["resources"]
     linux_dir = local_channel_obj / "linux-64"
     noarch_channel = local_channel_obj / "noarch"
