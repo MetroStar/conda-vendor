@@ -1,4 +1,4 @@
-import pytest 
+import pytest
 from unittest.mock import Mock
 import requests
 from requests import Response
@@ -8,6 +8,7 @@ from tests.repodata_fixtures import (
     python_395_pkg_list,
     repodata_output,
 )
+
 
 @pytest.fixture(scope="function")
 def minimal_environment(tmpdir_factory):
@@ -21,16 +22,15 @@ dependencies:
     return fn
 
 
-
 @pytest.fixture
-def mock_requests_repodata():
+def mock_requests_repodata(unfiltered_repo_data_response):
     requests_mock = Mock(spec=requests)
     actual_result_mock = Mock(Response)
     requests_mock.get.return_value = actual_result_mock
-    actual_result_mock.json.return_value = unfiltered_repo_data_response()
+    actual_result_mock.json.return_value = unfiltered_repo_data_response
     return requests_mock
 
-
+@pytest.fixture(scope="module")
 def unfiltered_repo_data_response():
     return {
         "info": {"subdir": "linux-64"},
@@ -106,7 +106,3 @@ def unfiltered_repo_data_response():
             },
         },
     }
-
-
-
-

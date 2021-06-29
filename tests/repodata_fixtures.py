@@ -3,6 +3,7 @@ import pytest
 
 
 @pytest.fixture
+# NOTE: conda channel structure
 def repodata_output():
     return {
         "info": {"subdir": "linux-64"},
@@ -258,6 +259,7 @@ def repodata_output():
         "repodata_version": 1,
     }
 
+
 @pytest.fixture
 def vendor_manifest_dict():
     return {
@@ -401,9 +403,11 @@ def vendor_manifest_dict():
         ]
     }
 
+
 @pytest.fixture
 def vendor_manifest():
     return yaml.dump(vendor_manifest_dict())
+
 
 @pytest.fixture
 def conda_solve_output():

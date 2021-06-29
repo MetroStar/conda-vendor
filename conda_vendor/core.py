@@ -3,6 +3,8 @@ import subprocess
 import pathlib
 import requests
 import yaml
+import hashlib
+import sys
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 
@@ -30,37 +32,33 @@ class CondaChannel:
         self.platforms = platforms
         self._repodata_dict = None
 
+    # needs test
     def fetch(self, requests=requests):
         repodata = {}
         for platform in self.platforms:
             repodata_url = self.base_url + platform + "/repodata.json"
             repodata[platform] = requests.get(repodata_url).json()
-
         self._repodata_dict = repodata
 
-    def _add_repodata_info(self, contents, platform="linux-64"):
-        contents["info"] = self._repodata_dict[platform]["info"]
-        return contents
-
     def filter_repodata(self, package_list, platform="linux-64"):
-        filtered_content = {}
+        filtered_content = {
+            "packages": {},
+            "packages.conda": {},
+            "info": self._repodata_dict[platform]["info"],
+        }
         packages = self._repodata_dict[platform]["packages"]
         conda_packages = self._repodata_dict[platform]["packages.conda"]
 
         for pkg_name in package_list:
             if pkg_name in packages.keys():
-                if "packages" not in filtered_content.keys():
-                    filtered_content["packages"] = {}
                 filtered_content["packages"][pkg_name] = packages[pkg_name]
 
             if pkg_name in conda_packages.keys():
-                if "packages.conda" not in filtered_content.keys():
-                    filtered_content["packages.conda"] = {}
                 filtered_content["packages.conda"][pkg_name] = conda_packages[pkg_name]
 
-        filtered_content = self._add_repodata_info(filtered_content)
         return filtered_content
 
+    # has test
     def create_dot_conda_and_tar_pkg_list(self, match_list, platform="linux-64"):
         dot_conda_channel_pkgs = [
             pkg.split(".conda")[0]
@@ -77,6 +75,7 @@ class CondaChannel:
 
         return desired_pkg_extension_list
 
+   
     def format_manifest(self, pkg_extension_list, base_url, platform):
         manifest_list = []
 
@@ -109,7 +108,7 @@ def fetch_repodata(package_file_names_list, requests=requests, platform="linux-6
 
     return filtered_content
 
-
+#TODO: need a function to write yaml dump probably just add out to this 
 def conda_vendor(environment_yml):
     specs = parse_environment(environment_yml)
     manifest = conda_vendor_artifacts_from_specs(specs)
@@ -122,7 +121,7 @@ def parse_environment(environment_yml):
 
     return specs
 
-
+#needs mock on test
 def conda_vendor_artifacts_from_specs(specs):
     link_actions = CondaLockWrapper().solve(specs)
     base_url = "https://repo.anaconda.com/pkgs/main"  # link_actions[0]['base_url]
@@ -159,7 +158,6 @@ def conda_vendor_artifacts_from_specs(specs):
     complete_manifest_list = linux_64_manifest_list + noarch_manifest_list
 
     manifest_dict = {"resources": complete_manifest_list}
-    # import ipdp; ipdb.set_trace()
 
     return manifest_dict
 
@@ -177,19 +175,29 @@ def create_channel_directories(channel_path="./"):
 
     return local_channel
 
+def download_and_validate(out, url, sha256, requests=requests):
+    url_data = requests.get(url)
+    print("yo", url_data )
+    with open(out, "wb") as f:
+        f.write(url_data)
+        calculated_sha = calc_sha256(url_data)
+        if sha256 != calculated_sha:
+            raise RuntimeError(f'SHA256 does not match for {out} calculated SHA: {calculated_sha}, '
+                'manifest SHA: {sha256}')
 
-def download_and_validate(manifest_dict, local_channel_obj , requests=requests) -> None :
-    # TODO: validate the sha 256 in seperate function, Not currently validating files ONLY download. 
+
+def calc_sha256(byte_array):                                                            
+    return hashlib.sha256(byte_array).hexdigest()
+
+def download_binaries(manifest_dict : dict, local_channel_obj, requests=requests) -> None:
+    # TODO: validate the sha 256 in seperate function, Not currently validating files ONLY download.
     resources_list = manifest_dict["resources"]
     linux_dir = local_channel_obj / "linux-64"
-    noarch_channel = local_channel_obj / "noarch"
+    noarch_dir = local_channel_obj / "noarch"
 
-    for resource in resources_list:
-        url_data = requests.get(resource["url"])
-        print(url_data)
-        if "noarch" in resource["url"]:
-            with open(noarch_channel / resource["name"], "wb") as f:
-                f.write(url_data)
-        else:
-            with open(linux_dir / resource["name"], "wb") as f:
-                f.write(url_data)
+    for resource in resources_list:        
+        output_path = noarch_dir if "noarch" in resource["url"] else linux_dir
+        if resource["validation"]["type"] != "sha256":
+            raise RuntimeError('invalid checksum type: {resource["validation"]["type"]}')
+        download_and_validate(output_path / resource["name"], 
+            resource["url"], resource["validation"]["value"], requests=requests)

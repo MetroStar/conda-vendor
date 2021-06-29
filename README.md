@@ -21,6 +21,7 @@ Repodata.json, repodata.json.ls bz2, vendor_manifest.yaml,
 ## Outputs
 - `repodata.json`
 - `vendor_manifest.yaml`
+- `local_environment.yaml`
 ```
 resources:
   - url: "https://s3.amazonaws.com/path/to/your/package-1.0.0.tar.gz"
