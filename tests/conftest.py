@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import Mock
 import requests
 from requests import Response
+import json
+from conda_vendor.core import CondaLockWrapper
 from tests.repodata_fixtures import (
     vendor_manifest_dict,
     dot_conda_and_tar_list,
@@ -29,6 +31,20 @@ def mock_requests_repodata(unfiltered_repo_data_response):
     requests_mock.get.return_value = actual_result_mock
     actual_result_mock.json.return_value = unfiltered_repo_data_response
     return requests_mock
+
+
+@pytest.fixture
+def mock_conda_lock(
+    unfiltered_repo_data_response, mock_conda_solve_value, mock_conda_parse_value
+):
+    CondaLockWrapper_mock = Mock(spec=CondaLockWrapper)
+    CondaLockWrapper_mock.parse.return_value = mock_conda_parse_value
+    CondaLockWrapper_mock.solve.return_value = mock_conda_solve_value
+    CondaLockWrapper_mock.solution_from_environment.return_value = (
+        mock_conda_solve_value
+    )
+    return CondaLockWrapper_mock
+
 
 @pytest.fixture(scope="module")
 def unfiltered_repo_data_response():
@@ -106,3 +122,184 @@ def unfiltered_repo_data_response():
             },
         },
     }
+
+
+@pytest.fixture(scope="module")
+def mock_conda_parse_value():
+    return ["python=3.9.5"]
+
+
+@pytest.fixture(scope="module")
+def mock_conda_solve_value():
+    return [
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "main",
+            "channel": "main",
+            "dist_name": "_libgcc_mutex-0.1-main",
+            "name": "_libgcc_mutex",
+            "platform": "linux-64",
+            "version": "0.1",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 1,
+            "build_string": "h06a4308_1",
+            "channel": "main",
+            "dist_name": "ca-certificates-2021.5.25-h06a4308_1",
+            "name": "ca-certificates",
+            "platform": "linux-64",
+            "version": "2021.5.25",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 9,
+            "build_string": "h7274673_9",
+            "channel": "main",
+            "dist_name": "ld_impl_linux-64-2.35.1-h7274673_9",
+            "name": "ld_impl_linux-64",
+            "platform": "linux-64",
+            "version": "2.35.1",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 17,
+            "build_string": "hd4cf53a_17",
+            "channel": "main",
+            "dist_name": "libstdcxx-ng-9.3.0-hd4cf53a_17",
+            "name": "libstdcxx-ng",
+            "platform": "linux-64",
+            "version": "9.3.0",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "h52ac0ba_0",
+            "channel": "main",
+            "dist_name": "tzdata-2021a-h52ac0ba_0",
+            "name": "tzdata",
+            "platform": "noarch",
+            "version": "2021a",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 17,
+            "build_string": "h5101ec6_17",
+            "channel": "main",
+            "dist_name": "libgomp-9.3.0-h5101ec6_17",
+            "name": "libgomp",
+            "platform": "linux-64",
+            "version": "9.3.0",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 17,
+            "build_string": "1_gnu",
+            "channel": "main",
+            "dist_name": "_openmp_mutex-4.5-1_gnu",
+            "name": "_openmp_mutex",
+            "platform": "linux-64",
+            "version": "4.5",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 17,
+            "build_string": "h5101ec6_17",
+            "channel": "main",
+            "dist_name": "libgcc-ng-9.3.0-h5101ec6_17",
+            "name": "libgcc-ng",
+            "platform": "linux-64",
+            "version": "9.3.0",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 2,
+            "build_string": "he6710b0_2",
+            "channel": "main",
+            "dist_name": "libffi-3.3-he6710b0_2",
+            "name": "libffi",
+            "platform": "linux-64",
+            "version": "3.3",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 1,
+            "build_string": "he6710b0_1",
+            "channel": "main",
+            "dist_name": "ncurses-6.2-he6710b0_1",
+            "name": "ncurses",
+            "platform": "linux-64",
+            "version": "6.2",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "h27cfd23_0",
+            "channel": "main",
+            "dist_name": "openssl-1.1.1k-h27cfd23_0",
+            "name": "openssl",
+            "platform": "linux-64",
+            "version": "1.1.1k",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "h7b6447c_0",
+            "channel": "main",
+            "dist_name": "xz-5.2.5-h7b6447c_0",
+            "name": "xz",
+            "platform": "linux-64",
+            "version": "5.2.5",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 3,
+            "build_string": "h7b6447c_3",
+            "channel": "main",
+            "dist_name": "zlib-1.2.11-h7b6447c_3",
+            "name": "zlib",
+            "platform": "linux-64",
+            "version": "1.2.11",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "h27cfd23_0",
+            "channel": "main",
+            "dist_name": "readline-8.1-h27cfd23_0",
+            "name": "readline",
+            "platform": "linux-64",
+            "version": "8.1",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "hbc83047_0",
+            "channel": "main",
+            "dist_name": "tk-8.6.10-hbc83047_0",
+            "name": "tk",
+            "platform": "linux-64",
+            "version": "8.6.10",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 0,
+            "build_string": "hc218d9a_0",
+            "channel": "main",
+            "dist_name": "sqlite-3.36.0-hc218d9a_0",
+            "name": "sqlite",
+            "platform": "linux-64",
+            "version": "3.36.0",
+        },
+        {
+            "base_url": "https://conda.anaconda.org/main",
+            "build_number": 4,
+            "build_string": "h12debd9_4",
+            "channel": "main",
+            "dist_name": "python-3.9.5-h12debd9_4",
+            "name": "python",
+            "platform": "linux-64",
+            "version": "3.9.5",
+        },
+    ]

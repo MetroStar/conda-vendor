@@ -5,21 +5,14 @@ from requests import Response
 import os
 import pytest
 import hashlib
+import json
 
-from conda_vendor.core import (
-    conda_vendor_artifacts_from_specs,
-    fetch_repodata,
-    parse_environment,
-    CondaChannel,
-    create_channel_directories,
-    download_binaries,
-    download_and_validate
-)
+from conda_vendor.core import fetch_repodata, CondaChannel
 
 
 @pytest.fixture
-def conda_channel_fixture(scope="module"):
-    return CondaChannel()
+def conda_channel_fixture(tmp_path, scope="module"):
+    return CondaChannel(channel_path=tmp_path)
 
 
 def test_conda_channel_init(conda_channel_fixture):
@@ -29,6 +22,12 @@ def test_conda_channel_init(conda_channel_fixture):
     assert conda_channel_fixture.platforms[0] == "linux-64"
     assert conda_channel_fixture.platforms[1] == "noarch"
     assert conda_channel_fixture._repodata_dict == None
+
+
+def test_create_directories(conda_channel_fixture):
+    conda_channel_fixture.create_directories()
+    for platform, info in conda_channel_fixture.channel_info.items():
+        assert info["dir"].exists()
 
 
 def test_conda_channel_fetch(mock_requests_repodata, conda_channel_fixture):
@@ -111,7 +110,8 @@ def test_conda_channel_fetch(mock_requests_repodata, conda_channel_fixture):
     result = conda_channel_fixture._repodata_dict
     assert set(result["linux-64"].keys()) == set(expected.keys())
 
-def test_filter_repodata_linux_package(conda_channel_fixture):
+
+def test_filter_repodata_linux_package(conda_channel_fixture, tmp_path):
     test_pkgs = ["LINUX_DUMMY_PACKAGE1"]
     test_repodata_dict = {
         "linux-64": {
@@ -120,10 +120,7 @@ def test_filter_repodata_linux_package(conda_channel_fixture):
                 "LINUX_DUMMY_PACKAGE1": {},
                 "LINUX_DUMMY_PACKAGE2": {},
             },
-            "packages.conda" : {
-                "DUMMY_LINUX_CONDA_PACKAGE" : {}
-            }
-
+            "packages.conda": {"DUMMY_LINUX_CONDA_PACKAGE": {}},
         },
         "noarch": {
             "info": {"subdir": "noarch"},
@@ -131,20 +128,19 @@ def test_filter_repodata_linux_package(conda_channel_fixture):
                 "NOARCH_DUMMER_PACKAGE1": {},
                 "NOARCH_DUMMER_PACKAGE2": {},
             },
-            "packages.conda" : {
-                "DUMMY_NOARCH_CONDA_PACKAGE" : {}
-            }
+            "packages.conda": {"DUMMY_NOARCH_CONDA_PACKAGE": {}},
         },
     }
     expected_linux = {
-    'packages': {
-                "LINUX_DUMMY_PACKAGE1": {},
-            }, 
-    'packages.conda': {}, 
-    "info" : {"subdir": "linux-64"}
+        "packages": {
+            "LINUX_DUMMY_PACKAGE1": {},
+        },
+        "packages.conda": {},
+        "info": {"subdir": "linux-64"},
     }
+    expected_file_path = tmp_path / "linux-64" / "repodata.json"
     conda_channel_fixture._repodata_dict = test_repodata_dict
-    result_linux = conda_channel_fixture.filter_repodata(test_pkgs)
+    result_linux = conda_channel_fixture.filter_repodata(test_pkgs, platform="linux-64")
     assert set(expected_linux.keys()) == set(result_linux.keys())
     for key in expected_linux.keys():
         assert expected_linux[key] == result_linux[key]
@@ -160,27 +156,25 @@ def test_filter_repodata_noarch_package(conda_channel_fixture):
                 "NOARCH_DUMMER_PACKAGE1": {},
                 "NOARCH_DUMMER_PACKAGE2": {},
             },
-            "packages.conda" : {
-                "DUMMY_NOARCH_CONDA_PACKAGE" : {}
-            }
+            "packages.conda": {"DUMMY_NOARCH_CONDA_PACKAGE": {}},
         },
     }
     expected_noarch = {
-    'packages': {
-                "NOARCH_DUMMER_PACKAGE2": {},
-            }, 
-    'packages.conda': {}, 
-    "info" : {"subdir": "noarch"}
+        "packages": {
+            "NOARCH_DUMMER_PACKAGE2": {},
+        },
+        "packages.conda": {},
+        "info": {"subdir": "noarch"},
     }
     conda_channel_fixture._repodata_dict = test_repodata_dict
-    result_noarch = conda_channel_fixture.filter_repodata(test_pkgs,platform="noarch")
+    result_noarch = conda_channel_fixture.filter_repodata(test_pkgs, platform="noarch")
     assert set(expected_noarch.keys()) == set(result_noarch.keys())
     for key in expected_noarch.keys():
         assert expected_noarch[key] == result_noarch[key]
 
 
 def test_filter_repodata_conda_noarch_package(conda_channel_fixture):
-    test_pkgs = ["NOARCH_DUMMER_CONDA_PACKAGE2","NOARCH_DUMMER_CONDA_PACKAGE1"]
+    test_pkgs = ["NOARCH_DUMMER_CONDA_PACKAGE2", "NOARCH_DUMMER_CONDA_PACKAGE1"]
     test_repodata_dict = {
         "linux-64": {},
         "noarch": {
@@ -188,31 +182,80 @@ def test_filter_repodata_conda_noarch_package(conda_channel_fixture):
             "packages": {
                 "NOARCH_DUMMER_PACKAGE1": {},
             },
-            "packages.conda" : {
-                "NOARCH_DUMMER_CONDA_PACKAGE1" : {},
-                "NOARCH_DUMMER_CONDA_PACKAGE2" : {},
-            }
+            "packages.conda": {
+                "NOARCH_DUMMER_CONDA_PACKAGE1": {},
+                "NOARCH_DUMMER_CONDA_PACKAGE2": {},
+            },
         },
     }
     expected_noarch = {
-    'packages':{
-            }, 
-    'packages.conda': {
-        "NOARCH_DUMMER_CONDA_PACKAGE1" : {},
-        "NOARCH_DUMMER_CONDA_PACKAGE2" : {},
+        "packages": {},
+        "packages.conda": {
+            "NOARCH_DUMMER_CONDA_PACKAGE1": {},
+            "NOARCH_DUMMER_CONDA_PACKAGE2": {},
         },
-    "info" : {"subdir": "noarch"},
+        "info": {"subdir": "noarch"},
     }
     conda_channel_fixture._repodata_dict = test_repodata_dict
-    result_noarch = conda_channel_fixture.filter_repodata(test_pkgs,platform="noarch")
+    result_noarch = conda_channel_fixture.filter_repodata(test_pkgs, platform="noarch")
     assert set(expected_noarch.keys()) == set(result_noarch.keys())
     for key in expected_noarch.keys():
         assert expected_noarch[key] == result_noarch[key]
 
-# need format_manifest
+
+def test_filter_all_write_repodata(conda_channel_fixture, tmp_path):
+    test_pkgs = [
+        "NOARCH_DUMMER_CONDA_PACKAGE2",
+        "NOARCH_DUMMER_CONDA_PACKAGE1",
+        "DUMMY_LINUX1",
+    ]
+    test_repodata_dict = {
+        "linux-64": {
+            "info": {"subdir": "linux-64"},
+            "packages": {"DUMMY_LINUX1": {}},
+            "packages.conda": {},
+        },
+        "noarch": {
+            "info": {"subdir": "noarch"},
+            "packages": {
+                "NOARCH_DUMMER_PACKAGE1": {},
+            },
+            "packages.conda": {
+                "NOARCH_DUMMER_CONDA_PACKAGE1": {},
+                "NOARCH_DUMMER_CONDA_PACKAGE2": {},
+            },
+        },
+    }
+    expected_noarch = {
+        "packages": {},
+        "packages.conda": {
+            "NOARCH_DUMMER_CONDA_PACKAGE1": {},
+            "NOARCH_DUMMER_CONDA_PACKAGE2": {},
+        },
+        "info": {"subdir": "noarch"},
+    }
+
+    expected_linux = {
+        "packages": {"DUMMY_LINUX1": {}},
+        "packages.conda": {},
+        "info": {"subdir": "linux-64"},
+    }
+    ## noarch
+    expected_file_path_noarch = tmp_path / "local_channel" / "noarch" / "repodata.json"
+    conda_channel_fixture._repodata_dict = test_repodata_dict
+    conda_channel_fixture.filter_all_write_repodata(test_pkgs)
+    with open(expected_file_path_noarch, "r") as f:
+        result_data = json.loads(f.read())
+        assert expected_noarch == result_data
+
+    # linux
+    expected_file_path_linux = tmp_path / "local_channel" / "linux-64" / "repodata.json"
+    with open(expected_file_path_linux, "r") as f:
+        result_data = json.loads(f.read())
+        assert expected_linux == result_data
 
 
-def test_fetch_repodata_for_a_list_of_packages(mock_requests_repodata):
+def test_fetch_repodata(mock_requests_repodata):
     input_packages = ["python-3.9.5-h12debd9_4.tar.bz2", "tk-8.6.10-hbc83047_0.conda"]
     expected_value = {
         "info": {"subdir": "linux-64"},
@@ -276,10 +319,11 @@ def test_create_dot_conda_and_tar_pkg_list(
     conda_channel_fixture, python_395_pkg_list, dot_conda_and_tar_list, repodata_output
 ):
     test_conda_channel = conda_channel_fixture
+
     test_conda_channel._repodata_dict = {"linux-64": repodata_output}
 
     actual_result = test_conda_channel.create_dot_conda_and_tar_pkg_list(
-        python_395_pkg_list
+        python_395_pkg_list, platform="linux-64"
     )
     expected_result = dot_conda_and_tar_list
 
@@ -309,53 +353,40 @@ def test_format_manifest(conda_channel_fixture, repodata_output):
 
     assert actual_result == expected_result
 
- 
-
-def test_create_channel_directories(tmp_path):
-    returned_local_channel = create_channel_directories(str(tmp_path.absolute()))
-
-    expected_root_dir = tmp_path / "local_channel"
-    expected_linux_dir = expected_root_dir / "linux-64"
-    expected_noarch_dir = expected_root_dir / "noarch"
-
-    assert expected_root_dir.is_dir()
-    assert expected_linux_dir.is_dir()
-    assert expected_noarch_dir.is_dir()
-    assert returned_local_channel == expected_root_dir
 
 @patch("requests.get")
 def test_download_and_validate_correct_sha(mock_requests_download, tmp_path):
     expected_raw = bytearray([45, 23, 8, 64, 1])
     expected_hash = hashlib.sha256(expected_raw).hexdigest()
     mock_requests_download.get.return_value = expected_raw
-    output = tmp_path / 'downloads'
-    fake_url = 'https://my.downloads.to/data.tar.bz2'
-    download_and_validate(output, fake_url, expected_hash, requests=mock_requests_download)
+    output = tmp_path / "downloads"
+    fake_url = "https://my.downloads.to/data.tar.bz2"
+    CondaChannel.download_and_validate(
+        output, fake_url, expected_hash, requests=mock_requests_download
+    )
     assert mock_requests_download.get.call_args.args[0] == fake_url
-    with open(output, 'rb') as f:
+    with open(output, "rb") as f:
         assert f.read() == expected_raw
+
 
 @patch("requests.get")
 def test_download_and_validate_incorrect_sha(mock_requests_download, tmp_path):
     expected_raw = bytearray([45, 23, 8, 64, 1])
     expected_incorrect_hash = hashlib.sha256(bytearray([8, 64, 1])).hexdigest()
     mock_requests_download.get.return_value = expected_raw
-    output = tmp_path / 'downloads'
-    fake_url = 'https://my.downloads.to/data.tar.bz2'
+    output = tmp_path / "downloads"
+    fake_url = "https://my.downloads.to/data.tar.bz2"
     with pytest.raises(RuntimeError) as error:
-        download_and_validate(output, fake_url, expected_incorrect_hash, requests=mock_requests_download)
+        CondaChannel.download_and_validate(
+            output, fake_url, expected_incorrect_hash, requests=mock_requests_download
+        )
         assert "invalid checksum type: " in str(error)
- 
+
+
 @patch("requests.get")
-def test_download_binaries(mock_requests_download, tmp_path):
+def test_download_binaries(mock_requests_download, tmp_path, conda_channel_fixture):
     mock_requests_download.get.return_value = bytearray([9, 9, 9])
     expected_sha = hashlib.sha256(bytearray([9, 9, 9])).hexdigest()
-    test_linux_path = tmp_path / "linux-64"
-    test_linux_path.mkdir()
-
-    test_noarch_path = tmp_path / "noarch"
-    test_noarch_path.mkdir()
-
     test_manifest_dict = {
         "resources": [
             {
@@ -377,35 +408,30 @@ def test_download_binaries(mock_requests_download, tmp_path):
         ]
     }
 
-    expected_linux_package_path = (
-        test_linux_path / test_manifest_dict["resources"][0]["name"]
-    )
     expected_linux_package_file_name = test_manifest_dict["resources"][0]["name"]
-
-    expected_noarch_package_path = (
-        test_noarch_path / test_manifest_dict["resources"][1]["name"]
-    )
     expected_noarch_package_file_name = test_manifest_dict["resources"][1]["name"]
-
-    expected_file_data = mock_requests_download.get.return_value 
-
-    download_binaries(test_manifest_dict, tmp_path, requests=mock_requests_download)
+    expected_file_data = mock_requests_download.get.return_value
+    conda_channel_fixture.download_binaries(
+        test_manifest_dict, requests=mock_requests_download
+    )
+    expected_linux_package_path = (
+        tmp_path / "local_channel" / "linux-64" / expected_linux_package_file_name
+    )
+    expected_noarch_package_path = (
+        tmp_path / "local_channel" / "noarch" / expected_noarch_package_file_name
+    )
 
     assert expected_linux_package_path.exists()
     assert expected_noarch_package_path.exists()
-
     assert mock_requests_download.get.call_count == 2
     for i, call in enumerate(mock_requests_download.get.call_args_list):
         args, kwargs = call
         assert args[0] == test_manifest_dict["resources"][i]["url"]
 
-    file_name = test_manifest_dict["resources"][0]["name"]
-    with open(tmp_path / "linux-64" / expected_linux_package_file_name, "rb") as f:
+    with open(expected_linux_package_path, "rb") as f:
         result_linux_file_data = f.read()
-
     assert expected_file_data == result_linux_file_data
 
-    with open(tmp_path / "noarch" / expected_noarch_package_file_name, "rb") as f:
+    with open(expected_noarch_package_path, "rb") as f:
         result_no_arch_file_data = f.read()
-
     assert expected_file_data == result_no_arch_file_data
