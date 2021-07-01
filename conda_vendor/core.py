@@ -12,18 +12,22 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 class CondaLockWrapper:
     def __init__(self, platform="linux-64"):
         self.platform = platform
+        self.specs = None
+        self.solution = None
 
     def parse(self, environment_yml):
-        lock_specs = parse_environment_file(environment_yml, self.platform)
-        return lock_specs.specs
+        parse_return  = parse_environment_file(environment_yml, self.platform)
+        self.specs = parse_return.specs
+        
+        return self.specs
 
     def solve(self, specs):
         solved_env = solve_specs_for_arch(
             "conda", ["main"], specs=specs, platform="linux-64"
         )
-
-        link_actions = solved_env["actions"]["LINK"]
-        return link_actions
+        print(solved_env )
+        self.solution = solved_env["actions"]["LINK"]
+        return self.solution
 
     def solution_from_environment(self, environment_yml):
         return self.solve(self.parse(environment_yml))
@@ -36,6 +40,7 @@ class CondaChannel:
         self.base_url = "https://repo.anaconda.com/pkgs/main/"
         self.platforms = platforms
         self._repodata_dict = None
+        self._requires_fetch = True
         self.channel_root = pathlib.Path(channel_path)
         self.local_channel = self.channel_root / "local_channel"
         self.channel_info = {}
@@ -51,12 +56,17 @@ class CondaChannel:
             info["dir"].mkdir(exist_ok=True)
 
     # needs test
-    def fetch(self, requests=requests):
+    def fetch(self,  force=False):
+        if not (force or self._requires_fetch):
+            return 
+
         repodata = {}
         for platform, channel in self.channel_info.items():
             result = requests.get(channel["url"])
             repodata[platform] = result.json()
+
         self._repodata_dict = repodata
+        self._requires_fetch = False
         return repodata
 
     def filter_repodata(self, package_list, platform):
@@ -79,50 +89,23 @@ class CondaChannel:
 
         return filtered_content
 
-    def filter_all_write_repodata(self, package_list):
+    def generate_repodata(self, package_list):
         self.create_directories()
+        print(f'generating repodata for {package_list}')
         for platform in self.channel_info.keys():
+            print(f'platform: {platform}')
+            print(f'package_list: {package_list}')
             repodata = self.filter_repodata(package_list, platform)
             write_path = self.channel_info[platform]["dir"] / "repodata.json"
+            print(f'writing to {write_path}')
+            print('----')
+            print(repodata)
+            print('----')
             with open(write_path, "w") as f:
                 f.write(json.dumps(repodata))
+            
 
-    # needs mock on test
-    # this will perform a fetch
-    def conda_vendor_artifacts_from_solutions(self, conda_solution, requests=requests):
-
-        # go get the repodata
-        self.fetch(requests=requests)
-
-        print(f"channel_info: {self.channel_info}")
-
-        complete_manifest_list = []
-        for platform, info in self.channel_info.items():
-            repodata = self._repodata_dict[platform]
-
-            pkg_names = [
-                link["dist_name"]
-                for link in conda_solution
-                if link["platform"] == platform
-            ]
-            # print(f'pkg_names: {pkg_names}')
-
-            pkg_correct_extensions = self.create_dot_conda_and_tar_pkg_list(
-                pkg_names, platform
-            )
-            # print(f'pkg_correct_Extensions: {pkg_correct_extensions}')
-
-            manifest_list = self.format_manifest(
-                pkg_correct_extensions, base_url=self.base_url, platform=platform
-            )
-
-            # print(f'manifest_list {manifest_list}')
-
-            complete_manifest_list.extend(manifest_list)
-
-        return {"resources": complete_manifest_list}
-
-    def create_dot_conda_and_tar_pkg_list(self, match_list, platform):
+    def _fix_extensions(self, match_list, platform):
         dot_conda_channel_pkgs = [
             pkg.split(".conda")[0]
             for pkg in self._repodata_dict[platform]["packages.conda"].keys()
@@ -135,32 +118,55 @@ class CondaChannel:
 
         return desired_pkg_extension_list
 
-    def format_manifest(self, pkg_extension_list, base_url, platform):
+    def format_manifest(self, pkg_list, platform):
         manifest_list = []
 
-        for pkg in pkg_extension_list:
-            if pkg.endswith(".conda"):
-                pkg_type = "packages.conda"
-            else:
-                pkg_type = "packages"
-            print("REPODATA")
+        def pkg_type(pkg):
+            return "packages.conda" if pkg.endswith(".conda") else "packages"
 
+        for pkg in pkg_list:
+            
             manifest_list.append(
                 {
-                    "url": f"{base_url}/{platform}/{pkg}",
+                    "url": f"{self.base_url}{platform}/{pkg}",
                     "name": f"{pkg}",
                     "validation": {
                         "type": "sha256",
-                        "value": self._repodata_dict[platform][pkg_type][pkg]["sha256"],
+                        "value": self._repodata_dict[platform][pkg_type(pkg)][pkg]["sha256"],
                     },
                 }
             )
 
         return manifest_list
 
+    # needs mock on test
+    # this will perform a fetch
+    def generate_manifest(self, conda_solution ):
+        self.fetch()
+
+        complete_manifest_list = []
+        for platform, info in self.channel_info.items():
+            pkg_names = [
+                link["dist_name"]
+                for link in conda_solution
+                if link["platform"] == platform
+            ]
+
+            pkg_correct_extensions = self._fix_extensions(pkg_names, platform)
+            
+            manifest_list = self.format_manifest(
+                pkg_correct_extensions, platform=platform
+            )
+
+            complete_manifest_list.extend(manifest_list)
+
+        return {"resources": complete_manifest_list}
+
+    
     @staticmethod
-    def download_and_validate(out, url, sha256, requests=requests):
-        url_data = requests.get(url)
+    def download_and_validate(out, url, sha256):
+        response = requests.get(url)
+        url_data = response.content
         with open(out, "wb") as f:
             f.write(url_data)
 
@@ -184,9 +190,12 @@ class CondaChannel:
         raise RuntimeError(f"no valid architecture found: {url}")
         return None
 
-    def download_binaries(self, manifest_dict: dict, requests=requests) -> None:
+    def download_binaries(self, manifest_dict: dict) -> None:
         # TODO: validate the sha 256 in seperate function, Not currently validating files ONLY download.
         self.create_directories()
+        self.fetch()
+
+        print('beginning download: ')
         resources_list = manifest_dict["resources"]
         for resource in resources_list:
             output_path = self.get_output_path(resource["url"])
@@ -198,12 +207,13 @@ class CondaChannel:
                 output_path / resource["name"],
                 resource["url"],
                 resource["validation"]["value"],
-                requests=requests,
+                
             )
+            print(f'downloading: {resource["url"]} to {output_path / resource["name"]}')
 
 
 # needs to be pushed DO WE EVEN NEED THIS ? where is package_file_names_list
-def fetch_repodata(package_file_names_list, requests=requests, platform="linux-64"):
+def fetch_repodata(package_file_names_list,  platform="linux-64"):
     conda_channel = CondaChannel()
     conda_channel.fetch()
     filtered_content = conda_channel.filter_repodata(
@@ -215,20 +225,18 @@ def fetch_repodata(package_file_names_list, requests=requests, platform="linux-6
 
 # TODO: need a function to write yaml dump probably just add out to this
 # TODO: this should also make or use a function that makes a local_yaml. Lets just make sure we can resolve
-def conda_vendor(
+def create_manifest(
     environment_yml,
     outpath=pathlib.Path("./"),
-    conda_lock_wrapper=CondaLockWrapper(),
-    requests=requests,
+    conda_lock=CondaLockWrapper(),
     conda_channel = CondaChannel(platforms=["linux-64", "noarch"])
-    
 ):
     # NOTE: if you pass none to not write yaml
-    link_actions = conda_lock_wrapper.solution_from_environment(environment_yml)
-    manifest = conda_channel.conda_vendor_artifacts_from_solutions(
-        conda_solution=link_actions, requests=requests
+    link_actions = conda_lock.solution_from_environment(environment_yml)
+    manifest = conda_channel.generate_manifest(
+        conda_solution=link_actions
     )
-    print(manifest)
+    
     outpath_file_name = outpath / "vendor_manifest.yaml"
     if outpath:
         with open(outpath_file_name, "w") as f:
@@ -236,7 +244,18 @@ def conda_vendor(
 
     return manifest
 
-
+def create_local_channels(
+    environment_yml,
+    outpath=pathlib.Path("./"),
+    conda_lock=CondaLockWrapper(),
+    
+    conda_channel = CondaChannel(platforms=["linux-64", "noarch"])
+):
+    manifest =  create_manifest(environment_yml, outpath, conda_lock, conda_channel)  
+    conda_channel.download_binaries(manifest)
+    package_list = [resource["name"] for resource in manifest["resources"]]
+    conda_channel.generate_repodata(package_list)
+    
 def parse_environment(environment_yml):
     parser = CondaLockWrapper()
     specs = parser.parse(environment_yml)

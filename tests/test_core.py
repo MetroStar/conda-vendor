@@ -29,8 +29,9 @@ def test_create_directories(conda_channel_fixture):
     for platform, info in conda_channel_fixture.channel_info.items():
         assert info["dir"].exists()
 
-
-def test_conda_channel_fetch(mock_requests_repodata, conda_channel_fixture):
+@patch("requests.get")
+def test_conda_channel_fetch(mock_get, conda_channel_fixture,unfiltered_repo_data_response):
+    mock_get.return_value = _mock_response(json_data=unfiltered_repo_data_response)
     expected = {
         "info": {"subdir": "linux-64"},
         "packages": {
@@ -106,7 +107,7 @@ def test_conda_channel_fetch(mock_requests_repodata, conda_channel_fixture):
         },
     }
     input_packages = ["python-3.9.5-h12debd9_4.tar.bz2", "tk-8.6.10-hbc83047_0.conda"]
-    conda_channel_fixture.fetch(requests=mock_requests_repodata)
+    conda_channel_fixture.fetch()
     result = conda_channel_fixture._repodata_dict
     assert set(result["linux-64"].keys()) == set(expected.keys())
 
@@ -203,7 +204,7 @@ def test_filter_repodata_conda_noarch_package(conda_channel_fixture):
         assert expected_noarch[key] == result_noarch[key]
 
 
-def test_filter_all_write_repodata(conda_channel_fixture, tmp_path):
+def test_generate_repodata(conda_channel_fixture, tmp_path):
     test_pkgs = [
         "NOARCH_DUMMER_CONDA_PACKAGE2",
         "NOARCH_DUMMER_CONDA_PACKAGE1",
@@ -243,7 +244,7 @@ def test_filter_all_write_repodata(conda_channel_fixture, tmp_path):
     ## noarch
     expected_file_path_noarch = tmp_path / "local_channel" / "noarch" / "repodata.json"
     conda_channel_fixture._repodata_dict = test_repodata_dict
-    conda_channel_fixture.filter_all_write_repodata(test_pkgs)
+    conda_channel_fixture.generate_repodata(test_pkgs)
     with open(expected_file_path_noarch, "r") as f:
         result_data = json.loads(f.read())
         assert expected_noarch == result_data
@@ -253,9 +254,12 @@ def test_filter_all_write_repodata(conda_channel_fixture, tmp_path):
     with open(expected_file_path_linux, "r") as f:
         result_data = json.loads(f.read())
         assert expected_linux == result_data
+    
 
 
-def test_fetch_repodata(mock_requests_repodata):
+@patch("requests.get")
+def test_fetch_repodata(mock_get,unfiltered_repo_data_response):
+    mock_get.return_value = _mock_response(json_data=unfiltered_repo_data_response)
     input_packages = ["python-3.9.5-h12debd9_4.tar.bz2", "tk-8.6.10-hbc83047_0.conda"]
     expected_value = {
         "info": {"subdir": "linux-64"},
@@ -305,7 +309,7 @@ def test_fetch_repodata(mock_requests_repodata):
         },
     }
 
-    result = fetch_repodata(input_packages, requests=mock_requests_repodata)
+    result = fetch_repodata(input_packages)
     assert result == expected_value
 
 
@@ -315,14 +319,14 @@ def test_parse_environment_file(minimal_environment):
     assert actual_output == expected_output
 
 
-def test_create_dot_conda_and_tar_pkg_list(
+def test__fix_extensions(
     conda_channel_fixture, python_395_pkg_list, dot_conda_and_tar_list, repodata_output
 ):
     test_conda_channel = conda_channel_fixture
 
     test_conda_channel._repodata_dict = {"linux-64": repodata_output}
 
-    actual_result = test_conda_channel.create_dot_conda_and_tar_pkg_list(
+    actual_result = test_conda_channel._fix_extensions(
         python_395_pkg_list, platform="linux-64"
     )
     expected_result = dot_conda_and_tar_list
@@ -336,7 +340,6 @@ def test_format_manifest(conda_channel_fixture, repodata_output):
 
     actual_result = test_conda_channel.format_manifest(
         ["python-3.9.5-h12debd9_4.tar.bz2"],
-        base_url="https://repo.anaconda.com/pkgs/main",
         platform="linux-64",
     )
 
@@ -346,46 +349,81 @@ def test_format_manifest(conda_channel_fixture, repodata_output):
             "name": "python-3.9.5-h12debd9_4.tar.bz2",
             "validation": {
                 "type": "sha256",
-                "value": "7fc98fe684cb716a8d19cf20a77ccce3cda3f6da968abaade63edbe006d8f3ba",
+                "value": "7fc98fe684cb716a8d19cf20a77ccce3cda3f6da968abaade63edbe006d8f3ba"
             },
         }
     ]
+
+    if actual_result != expected_result:
+        print('act', actual_result)
+        print('exp', expected_result)
 
     assert actual_result == expected_result
 
 
 @patch("requests.get")
-def test_download_and_validate_correct_sha(mock_requests_download, tmp_path):
+def test_download_and_validate_correct_sha(mock_get, tmp_path):
+    
     expected_raw = bytearray([45, 23, 8, 64, 1])
+    mock_get.return_value = _mock_response(content=expected_raw)
     expected_hash = hashlib.sha256(expected_raw).hexdigest()
-    mock_requests_download.get.return_value = expected_raw
+    
     output = tmp_path / "downloads"
     fake_url = "https://my.downloads.to/data.tar.bz2"
     CondaChannel.download_and_validate(
-        output, fake_url, expected_hash, requests=mock_requests_download
+        output, fake_url, expected_hash
     )
-    assert mock_requests_download.get.call_args.args[0] == fake_url
+    
     with open(output, "rb") as f:
         assert f.read() == expected_raw
 
 
 @patch("requests.get")
-def test_download_and_validate_incorrect_sha(mock_requests_download, tmp_path):
+def test_download_and_validate_incorrect_sha(mock_get, tmp_path):
     expected_raw = bytearray([45, 23, 8, 64, 1])
+    mock_get.return_value = _mock_response(content=expected_raw)
     expected_incorrect_hash = hashlib.sha256(bytearray([8, 64, 1])).hexdigest()
-    mock_requests_download.get.return_value = expected_raw
+    
     output = tmp_path / "downloads"
     fake_url = "https://my.downloads.to/data.tar.bz2"
     with pytest.raises(RuntimeError) as error:
         CondaChannel.download_and_validate(
-            output, fake_url, expected_incorrect_hash, requests=mock_requests_download
+            output, fake_url, expected_incorrect_hash
         )
         assert "invalid checksum type: " in str(error)
 
 
+def _mock_response(
+        status=200,
+        content= b"CONTENT",
+        json_data=None,
+        raise_for_status=None):
+    """
+    since we typically test a bunch of different
+    requests calls for a service, we are going to do
+    a lot of mock responses, so its usually a good idea
+    to have a helper function that builds these things
+    """
+    mock_resp = Mock()
+    # mock raise_for_status call w/optional error
+    mock_resp.raise_for_status = Mock()
+    if raise_for_status:
+        mock_resp.raise_for_status.side_effect = raise_for_status
+    # set status code and content
+    mock_resp.status_code = status
+    mock_resp.content = content
+    # add json data if provided
+    if json_data:
+        mock_resp.json = Mock(
+            return_value=json_data
+        )
+    return mock_resp
+
 @patch("requests.get")
-def test_download_binaries(mock_requests_download, tmp_path, conda_channel_fixture):
-    mock_requests_download.get.return_value = bytearray([9, 9, 9])
+def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
+    mock_resp = _mock_response(content=bytearray([9, 9, 9]))
+    mock_get.return_value = mock_resp
+    # mock_requests_download_content.return_value = Response(bytearray([9, 9, 9]))
     expected_sha = hashlib.sha256(bytearray([9, 9, 9])).hexdigest()
     test_manifest_dict = {
         "resources": [
@@ -410,9 +448,10 @@ def test_download_binaries(mock_requests_download, tmp_path, conda_channel_fixtu
 
     expected_linux_package_file_name = test_manifest_dict["resources"][0]["name"]
     expected_noarch_package_file_name = test_manifest_dict["resources"][1]["name"]
-    expected_file_data = mock_requests_download.get.return_value
+    expected_file_data = bytearray([9, 9, 9])
+    conda_channel_fixture._requires_fetch = False
     conda_channel_fixture.download_binaries(
-        test_manifest_dict, requests=mock_requests_download
+        test_manifest_dict
     )
     expected_linux_package_path = (
         tmp_path / "local_channel" / "linux-64" / expected_linux_package_file_name
@@ -423,8 +462,8 @@ def test_download_binaries(mock_requests_download, tmp_path, conda_channel_fixtu
 
     assert expected_linux_package_path.exists()
     assert expected_noarch_package_path.exists()
-    assert mock_requests_download.get.call_count == 2
-    for i, call in enumerate(mock_requests_download.get.call_args_list):
+    assert mock_get.call_count == 2
+    for i, call in enumerate(mock_get.get.call_args_list):
         args, kwargs = call
         assert args[0] == test_manifest_dict["resources"][i]["url"]
 
