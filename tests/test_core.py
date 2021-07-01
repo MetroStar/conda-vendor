@@ -7,7 +7,7 @@ import pytest
 import hashlib
 import json
 
-from conda_vendor.core import fetch_repodata, CondaChannel
+from conda_vendor.core import fetch_repodata, CondaChannel, parse_environment
 
 
 @pytest.fixture

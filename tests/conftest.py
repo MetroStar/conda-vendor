@@ -43,6 +43,7 @@ def mock_conda_lock(
     CondaLockWrapper_mock.solution_from_environment.return_value = (
         mock_conda_solve_value
     )
+
     return CondaLockWrapper_mock
 
 
