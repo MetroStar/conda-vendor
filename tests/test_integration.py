@@ -4,7 +4,12 @@ import pathlib
 import tempfile
 from io import FileIO
 from pathlib import Path
-from conda_vendor.core import create_manifest, CondaChannel, create_local_channels
+from conda_vendor.core import (
+        create_manifest, 
+        CondaChannel, 
+        create_local_channels,
+        create_local_environment_yaml
+)
 from unittest.mock import Mock, patch
 import pytest
 import requests
@@ -87,22 +92,28 @@ def test_generate_manifest(
 
 
 def test_run_create_manifest(minimal_environment, vendor_manifest_dict,conda_channel_fixture): 
-    expected_file_path =  conda_channel_fixture.channel_root / "local_yaml.yaml"
+    
     expected_local_channel = "file://" + str(conda_channel_fixture.local_channel)
     result_manifest = create_manifest(minimal_environment, 
-                                      conda_channel=conda_channel_fixture,
-                                      local_environment_name = "MY_TROPICAL_ENV")
+                                      conda_channel=conda_channel_fixture
+                                      )
+    
     vendor_manifest_dict == result_manifest
+
+
+def test_create_local_environment_yaml(minimal_environment,conda_channel_fixture):
+
+    test_env_name = "THE_BEST_ENV"
+    expected_file_path =  conda_channel_fixture.channel_root / "local_yaml.yaml"
+    expected_local_channel = "file://" + str(conda_channel_fixture.local_channel)
+    result = create_local_environment_yaml(minimal_environment, conda_channel= conda_channel_fixture, local_environment_name= test_env_name)
+    
+
     with open(expected_file_path, "r") as f:
         result_yaml = yaml.load(f, Loader=yaml.SafeLoader) 
-    assert result_yaml['name'] == 'MY_TROPICAL_ENV'
+    assert result_yaml['name'] == test_env_name
     assert result_yaml['channels'][0] == expected_local_channel
     assert result_yaml['channels'][1] == "nodefaults"
-
-    
-    
-    
-    
 
 
 def test_install_from_local_channel_offline(minimal_environment, tmp_path, conda_channel_fixture):
