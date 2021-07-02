@@ -8,13 +8,12 @@ from conda_vendor.core import create_manifest, CondaChannel, create_local_channe
 from unittest.mock import Mock, patch
 import pytest
 import requests
+import subprocess
+import yaml
 
 @pytest.fixture
 def conda_channel_fixture(tmp_path, mock_requests_repodata, scope="module"):
     return CondaChannel(channel_path=tmp_path)
-
-
-
 
 def test_generate_manifest(
     mock_requests_repodata,
@@ -86,23 +85,95 @@ def test_generate_manifest(
     
 
 
-#TODO: NEEDS more work reaches out to internet but we want a test to do this 
-def test_run_create_manifest(minimal_environment,tmp_path,
-vendor_manifest_dict
-):  
-    expected_manifest = vendor_manifest_dict
-    result_manifest = create_manifest(minimal_environment,outpath=tmp_path)
-    print(minimal_environment)
-    print("result_manifest", result_manifest)
-    expected_manifest == result_manifest
-    # assert "python-3.9.5-h12debd9_4.tar.bz2" in result_manifest
+
+def test_run_create_manifest(minimal_environment, vendor_manifest_dict,conda_channel_fixture): 
+    expected_file_path =  conda_channel_fixture.channel_root / "local_yaml.yaml"
+    expected_local_channel = "file://" + str(conda_channel_fixture.local_channel)
+    result_manifest = create_manifest(minimal_environment, 
+                                      conda_channel=conda_channel_fixture,
+                                      local_environment_name = "MY_TROPICAL_ENV")
+    vendor_manifest_dict == result_manifest
+    with open(expected_file_path, "r") as f:
+        result_yaml = yaml.load(f, Loader=yaml.SafeLoader) 
+    assert result_yaml['name'] == 'MY_TROPICAL_ENV'
+    assert result_yaml['channels'][0] == expected_local_channel
+    assert result_yaml['channels'][1] == "nodefaults"
+
+    
+    
+    
+    
 
 
-def test_install_from_local_channel_offline(minimal_environment , tmp_path,conda_channel_fixture):
-    print(tmp_path)
-    create_local_channels(minimal_environment , outpath=tmp_path, conda_channel=conda_channel_fixture)
+def test_install_from_local_channel_offline(minimal_environment, tmp_path, conda_channel_fixture):
+    create_local_channels(minimal_environment, conda_channel=conda_channel_fixture)
+    tmp_pkg_path = tmp_path / "local_channel"
+    cmd_str = f"conda create -n OBVIOUS_DUMMY_ENV python=3.9.5 -c {tmp_pkg_path} --offline --dry-run"
+    process_out = subprocess.check_output(cmd_str, 
+    stderr=subprocess.STDOUT,
+    shell=True).decode('utf-8')
+    assert "python=3.9.5" in process_out
+    assert "DryRunExit: Dry run. Exiting." in process_out
 
-    print(os.listdir(tmp_path))
-    #conda create -n test_env python=3.9.5 -c file:///tmp_path/local_channel --offline --dry-run
-    # assert 1==0
+
+
+
+
+def test_create_conda_env_from_local_yaml(minimal_environment, tmp_path, conda_channel_fixture):
+    test_env_name = "the_test_conda_env"
+    path_to_local_env_yaml = tmp_path / "local_yaml.yaml"
+    create_local_channels(minimal_environment, conda_channel=conda_channel_fixture, local_environment_name=test_env_name)
+    
+    cmd_str_create_env = f"conda env create  -f {path_to_local_env_yaml} --offline "
+    cmd_str_check_env  = "conda env list"
+    cmd_rm_env = f"conda env remove -n {test_env_name}"
+    
+    process_out_create_env = subprocess.check_output(cmd_str_create_env, 
+                                        stderr=subprocess.STDOUT,
+                                        shell=True).decode('utf-8')
+
+
+
+    
+    
+    process_out_env_list = subprocess.check_output(cmd_str_check_env, 
+                                          stderr=subprocess.STDOUT,
+                                          shell=True).decode('utf-8')
+
+    assert test_env_name in process_out_env_list
+    
+    process_out_rm_env = subprocess.check_output(cmd_rm_env, 
+                                        stderr=subprocess.STDOUT,
+                                        shell=True).decode('utf-8')
+
+    assert "Remove all packages in environment" in process_out_rm_env
+    assert test_env_name in process_out_rm_env
+
+
+
+
+
+
+
+
+
+
+
+    
+
+   
+    
+
+
+
+
+
+
+
+    
+
+
+
+
+    
 

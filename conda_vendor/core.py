@@ -25,7 +25,7 @@ class CondaLockWrapper:
         solved_env = solve_specs_for_arch(
             "conda", ["main"], specs=specs, platform="linux-64"
         )
-        print(solved_env )
+        
         self.solution = solved_env["actions"]["LINK"]
         return self.solution
 
@@ -91,16 +91,10 @@ class CondaChannel:
 
     def generate_repodata(self, package_list):
         self.create_directories()
-        print(f'generating repodata for {package_list}')
+        
         for platform in self.channel_info.keys():
-            print(f'platform: {platform}')
-            print(f'package_list: {package_list}')
             repodata = self.filter_repodata(package_list, platform)
             write_path = self.channel_info[platform]["dir"] / "repodata.json"
-            print(f'writing to {write_path}')
-            print('----')
-            print(repodata)
-            print('----')
             with open(write_path, "w") as f:
                 f.write(json.dumps(repodata))
             
@@ -139,7 +133,7 @@ class CondaChannel:
 
         return manifest_list
 
-    # needs mock on test
+    
     # this will perform a fetch
     def generate_manifest(self, conda_solution ):
         self.fetch()
@@ -161,7 +155,8 @@ class CondaChannel:
             complete_manifest_list.extend(manifest_list)
 
         return {"resources": complete_manifest_list}
-
+    
+  
     
     @staticmethod
     def download_and_validate(out, url, sha256):
@@ -212,51 +207,66 @@ class CondaChannel:
             print(f'downloading: {resource["url"]} to {output_path / resource["name"]}')
 
 
-# needs to be pushed DO WE EVEN NEED THIS ? where is package_file_names_list
-def fetch_repodata(package_file_names_list,  platform="linux-64"):
-    conda_channel = CondaChannel()
-    conda_channel.fetch()
-    filtered_content = conda_channel.filter_repodata(
-        package_file_names_list, platform=platform
-    )
-    # TODO: we need to write this to the correct architecture repo so we can have a local channel
-    return filtered_content
 
 
 # TODO: need a function to write yaml dump probably just add out to this
 # TODO: this should also make or use a function that makes a local_yaml. Lets just make sure we can resolve
 def create_manifest(
     environment_yml,
-    outpath=pathlib.Path("./"),
     conda_lock=CondaLockWrapper(),
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"])
-):
-    # NOTE: if you pass none to not write yaml
+    conda_channel = CondaChannel(platforms=["linux-64", "noarch"]),
+    local_environment_name = None
+):  
+    with open(environment_yml, "r") as f:
+        local_yml = yaml.load(f, Loader=yaml.SafeLoader) 
+
+    if not local_environment_name:
+        local_environment_name = f"local_{local_yml['name']}"
+
+    local_yml['name'] = local_environment_name
+    local_yml["channels"] = [f"file://{conda_channel.local_channel.absolute()}", "nodefaults"]
+    
+    print(f"Writing : local_yaml.yaml | Environment Name : {local_environment_name}")
+    
+    with open(conda_channel.channel_root / "local_yaml.yaml", "w") as f:
+        yaml.safe_dump(local_yml,f , sort_keys=False)
+
     link_actions = conda_lock.solution_from_environment(environment_yml)
     manifest = conda_channel.generate_manifest(
         conda_solution=link_actions
     )
     
-    outpath_file_name = outpath / "vendor_manifest.yaml"
-    if outpath:
-        with open(outpath_file_name, "w") as f:
-            yaml.dump(manifest, f)
+    outpath_file_name = conda_channel.channel_root / "vendor_manifest.yaml"
+    with open(outpath_file_name, "w") as f:
+        yaml.dump(manifest, f)
 
     return manifest
 
 def create_local_channels(
     environment_yml,
-    outpath=pathlib.Path("./"),
-    conda_lock=CondaLockWrapper(),
-    
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"])
-):
-    manifest =  create_manifest(environment_yml, outpath, conda_lock, conda_channel)  
+    conda_lock=CondaLockWrapper(),    
+    conda_channel=CondaChannel(platforms=["linux-64", "noarch"]),
+    local_environment_name = None
+
+):  
+    manifest = create_manifest(environment_yml, conda_lock, conda_channel,local_environment_name )  
     conda_channel.download_binaries(manifest)
     package_list = [resource["name"] for resource in manifest["resources"]]
     conda_channel.generate_repodata(package_list)
-    
+
+
+
 def parse_environment(environment_yml):
     parser = CondaLockWrapper()
     specs = parser.parse(environment_yml)
     return specs
+
+
+
+def fetch_repodata(package_file_names_list,  platform="linux-64"):
+    conda_channel = CondaChannel()
+    conda_channel.fetch()
+    filtered_content = conda_channel.filter_repodata(
+        package_file_names_list, platform=platform
+    )
+    return filtered_content

@@ -474,3 +474,6 @@ def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
     with open(expected_noarch_package_path, "rb") as f:
         result_no_arch_file_data = f.read()
     assert expected_file_data == result_no_arch_file_data
+
+
+
