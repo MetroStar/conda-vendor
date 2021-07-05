@@ -17,14 +17,12 @@ class CondaLockWrapper:
     def parse(self, environment_yml):
         parse_return  = parse_environment_file(environment_yml, self.platform)
         self.specs = parse_return.specs
-        
         return self.specs
 
     def solve(self, specs):
         solved_env = solve_specs_for_arch(
             "conda", ["main"], specs=specs, platform="linux-64"
         )
-        
         self.solution = solved_env["actions"]["LINK"]
         return self.solution
 
@@ -58,7 +56,7 @@ class CondaChannel:
     # needs test
     def fetch(self,  force=False):
         if not (force or self._requires_fetch):
-            return 
+            return
 
         repodata = {}
         for platform, channel in self.channel_info.items():
@@ -91,13 +89,13 @@ class CondaChannel:
 
     def generate_repodata(self, package_list):
         self.create_directories()
-        
+
         for platform in self.channel_info.keys():
             repodata = self.filter_repodata(package_list, platform)
             write_path = self.channel_info[platform]["dir"] / "repodata.json"
             with open(write_path, "w") as f:
                 f.write(json.dumps(repodata))
-            
+
 
     def _fix_extensions(self, match_list, platform):
         dot_conda_channel_pkgs = [
@@ -119,7 +117,7 @@ class CondaChannel:
             return "packages.conda" if pkg.endswith(".conda") else "packages"
 
         for pkg in pkg_list:
-            
+
             manifest_list.append(
                 {
                     "url": f"{self.base_url}{platform}/{pkg}",
@@ -133,7 +131,7 @@ class CondaChannel:
 
         return manifest_list
 
-    
+
     # this will perform a fetch
     def generate_manifest(self, conda_solution ):
         self.fetch()
@@ -147,7 +145,7 @@ class CondaChannel:
             ]
 
             pkg_correct_extensions = self._fix_extensions(pkg_names, platform)
-            
+
             manifest_list = self.format_manifest(
                 pkg_correct_extensions, platform=platform
             )
@@ -155,9 +153,9 @@ class CondaChannel:
             complete_manifest_list.extend(manifest_list)
 
         return {"resources": complete_manifest_list}
-    
-  
-    
+
+
+
     @staticmethod
     def download_and_validate(out, url, sha256):
         response = requests.get(url)
@@ -202,11 +200,17 @@ class CondaChannel:
                 output_path / resource["name"],
                 resource["url"],
                 resource["validation"]["value"],
-                
+
             )
  #           print(f'downloading: {resource["url"]} to {output_path / resource["name"]}')
 
 
+
+def default_conda_lock():
+    return CondaLockWrapper()
+
+def default_conda_channel():
+    return CondaChannel(platforms=['linux-64', 'noarch'])
 
 
 # TODO: need a function to write yaml dump probably just add out to this
@@ -214,65 +218,96 @@ class CondaChannel:
 
 def get_manifest(
     environment_yml,
-    conda_lock=CondaLockWrapper(),
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"])
-):  
+    *,
+    conda_lock=default_conda_lock(),
+    conda_channel=default_conda_channel()
+):
     link_actions = conda_lock.solution_from_environment(environment_yml)
     manifest = conda_channel.generate_manifest(conda_solution=link_actions)
     return manifest
 
 def create_manifest(
     environment_yml,
-    conda_lock=CondaLockWrapper(),
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"]),
-):  
-    manifest = get_manifest(environment_yml, conda_lock, conda_channel)
-    outpath_file_name = conda_channel.channel_root / "vendor_manifest.yaml"
+    *,
+    conda_lock=default_conda_lock(),
+    conda_channel=default_conda_channel(),
+    manifest_filename=None
+):
+    manifest = get_manifest(environment_yml,
+            conda_lock=conda_lock,
+            conda_channel=conda_channel)
+
+    if not manifest_filename:
+        manifest_filename = 'vendor_manifest.yaml'
+
+    cleaned_name = pathlib.PurePath(manifest_filename).name
+    outpath_file_name = conda_channel.channel_root / cleaned_name
     with open(outpath_file_name, "w") as f:
         yaml.dump(manifest, f)
     return manifest
 
 def get_local_environment_yaml(
     environment_yml,
-    conda_lock=CondaLockWrapper(),
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"]),
-    local_environment_name = None
-):  
+    *,
+    conda_channel=default_conda_channel(),
+    local_environment_name=None
+):
     with open(environment_yml, "r") as f:
-        local_yml = yaml.load(f, Loader=yaml.SafeLoader) 
+        local_yml = yaml.load(f, Loader=yaml.SafeLoader)
 
     if not local_environment_name:
         local_environment_name = f"local_{local_yml['name']}"
 
     local_yml['name'] = local_environment_name
-    local_yml["channels"] = [f"file://{conda_channel.local_channel.absolute()}", "nodefaults"]
+    local_yml["channels"] = [
+            f"file://{conda_channel.local_channel.absolute()}",
+            "nodefaults"
+            ]
     return local_yml
-    
-    
+
+
 def create_local_environment_yaml(
     environment_yml,
-    conda_lock=CondaLockWrapper(),
-    conda_channel = CondaChannel(platforms=["linux-64", "noarch"]),
-    local_environment_name = None
-):  
-    local_yml = get_local_environment_yaml(environment_yml, conda_lock, conda_channel, local_environment_name)   
-    with open(conda_channel.channel_root / "local_yaml.yaml", "w") as f:
+    *,
+    conda_channel=default_conda_channel(),
+    local_environment_name=None,
+    local_environment_filename=None
+):
+
+    local_yml = get_local_environment_yaml(environment_yml,
+            conda_channel=conda_channel,
+            local_environment_name=local_environment_name)
+
+    if not local_environment_filename:
+        local_environment_filename='local_yaml.yaml'
+
+    cleaned_name = pathlib.PurePath(local_environment_filename).name
+    outpath_file_name = conda_channel.channel_root / cleaned_name
+    with open(outpath_file_name, "w") as f:
         yaml.safe_dump(local_yml,f , sort_keys=False)
-
-
 
 
 def create_local_channels(
     environment_yml,
-    conda_lock=CondaLockWrapper(),    
-    conda_channel=CondaChannel(platforms=["linux-64", "noarch"]),
-    local_environment_name = None
+    *,
+    conda_lock=default_conda_lock(),
+    conda_channel=default_conda_channel(),
+    manifest_filename = None,
+    local_environment_name = None,
+    local_environment_filename = None,
+):
+    manifest = create_manifest(environment_yml,
+            conda_lock=conda_lock,
+            conda_channel=conda_channel,
+            manifest_filename=manifest_filename
+            )
 
-):  
-    manifest = create_manifest(environment_yml, conda_lock, conda_channel)
-    create_local_environment_yaml(environment_yml, conda_lock, 
-        conda_channel,local_environment_name)
-        
+    create_local_environment_yaml(environment_yml,
+        conda_channel=conda_channel,
+        local_environment_name=local_environment_name,
+        local_environment_filename=local_environment_filename
+        )
+
     conda_channel.download_binaries(manifest)
     package_list = [resource["name"] for resource in manifest["resources"]]
     conda_channel.generate_repodata(package_list)
