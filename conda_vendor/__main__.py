@@ -25,18 +25,19 @@ class CommandManifest:
         for resource in manifest_yaml['resources']:
             print(resource['name'])
 
-    def add_command(self, parser):
-        manifest_parser = parser.add_parser('manifest',
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str,
             help='mainifest commands')
-        manifest_parser.add_argument('-f', '--file', type=str,
+        parser.add_argument('-f', '--file', type=str,
             help='environment.yaml file')
-        manifest_parser.add_argument('-p','--print', action='store_true',
+        parser.add_argument('-p','--print', action='store_true',
             help='print manifest' )
-        manifest_parser.add_argument('-c','--create', action='store_true',
+        parser.add_argument('-c','--create', action='store_true',
             help='create manifest')
-        manifest_parser.add_argument('-o', '--only-files', action='store_true',
+        parser.add_argument('-o', '--only-files', action='store_true',
             help='list all files in manifest')
-        manifest_parser.add_argument('-m', '--manifest-filename', type=str,
+        parser.add_argument('-m', '--manifest-filename', type=str,
             help='write manifest to this file')
 
     def do_command(self, args, environment_yml):
@@ -67,18 +68,19 @@ class CommandLocalYaml:
                 local_environment_name=local_environment_name,
                 local_environment_filename=local_environment_filename)
 
-    def add_command(self, parser):
-        local_yml_parser = parser.add_parser('local_yml',
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str,
             help='local yaml commands')
-        local_yml_parser.add_argument('-p','--print', action='store_true',
+        parser.add_argument('-p','--print', action='store_true',
             help='print local environment.yaml' )
-        local_yml_parser.add_argument('-c','--create', action='store_true',
+        parser.add_argument('-c','--create', action='store_true',
             help='create local environment.yaml')
-        local_yml_parser.add_argument('-f', '--file', type=str,
+        parser.add_argument('-f', '--file', type=str,
             help='environment.yaml file')
-        local_yml_parser.add_argument('-n', '--name', type=str,
+        parser.add_argument('-n', '--name', type=str,
             help='local environment name')
-        local_yml_parser.add_argument('-e', '--environment-file', type=str,
+        parser.add_argument('-e', '--environment-file', type=str,
             help='local environment filename')
 
     def do_command(self, args, environment_yml):
@@ -125,23 +127,27 @@ class CommandLocalChannels:
                     local_environment_filename=local_environment_filename)
 
 
-    def add_command(self, parser):
-        local_channels_parser = parser.add_parser('local_channels',
-            help='local channel commands')
-        local_channels_parser.add_argument('-c', '--create', action='store_true',
+    def configure_parser(self, parser):
+        parser.add_argument('-c', '--create', action='store_true',
             help='create local channel data')
-#        local_channels_parser.add_argument('--dry-run', action='store_true',
+#        parser.add_argument('--dry-run', action='store_true',
 #            help='local environment filename')
-        local_channels_parser.add_argument('-f', '--file', type=str,
+        parser.add_argument('-f', '--file', type=str,
             help='environment.yaml file')
-        local_channels_parser.add_argument('-l', '--local-dir', type=str,
+        parser.add_argument('-l', '--local-dir', type=str,
             help='create local directories here')
-        local_channels_parser.add_argument('-m', '--manifest-filename', type=str,
+        parser.add_argument('-m', '--manifest-filename', type=str,
             help='write manifest to this file')
-        local_channels_parser.add_argument('-n', '--name', type=str,
+        parser.add_argument('-n', '--name', type=str,
             help='local environment name')
-        local_channels_parser.add_argument('-e', '--environment-file', type=str,
+        parser.add_argument('-e', '--environment-file', type=str,
             help='local environment filename')
+
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str,
+            help='local channel commands')
+        self.configure_parser(parser)
 
     def do_command(self, args, environment_yml):
         self.create(environment_yml,
@@ -153,23 +159,22 @@ class CommandLocalChannels:
 def main():
     parser = argparse.ArgumentParser(
             description='conda-vendor creates a local conda environment')
-
-    manifest = CommandManifest()
-    local_yaml = CommandLocalYaml()
-    local_channels = CommandLocalChannels()
-
     sub_parsers = parser.add_subparsers(
         help='some string',
-        dest='subcmd')
-    manifest.add_command(sub_parsers)
-    local_yaml.add_command(sub_parsers)
-    local_channels.add_command(sub_parsers)
+        dest='subcmd',
+        required=False)
+
+    sub_commands = {
+            'manifest': CommandManifest(sub_parsers, 'manifest'),
+            'local_yml': CommandLocalYaml(sub_parsers, 'local_yml'),
+            'local_channels': CommandLocalChannels(sub_parsers, 'local_channels')
+            }
+
+    # main parser arguments are if no subcommand is specified
+    # default to create local channels
+    sub_commands['local_channels'].configure_parser(parser)
 
     args, rest = parser.parse_known_args()
-    print(f'args: {args}')
-    print(f'rest: {rest}')
-    print()
-
     if not args.file:
         if not rest:
             sys.stderr.write('must supply environment.yml file.\n')
@@ -185,18 +190,14 @@ def main():
         sys.stderr.write(f'enviroment file \'{str(args.file)}\' does not exist\n')
         sys.exit(1)
 
-    if args.subcmd == 'manifest':
-        manifest.do_command(args, environment_yml)
-        return
-    elif args.subcmd == 'local_yml':
-        local_yaml.do_command(args, environment_yml)
-        return
-    elif args.subcmd == 'local_channels':
-        local_channels.do_command(args, environment_yml)
-        return
+    for cmd in sub_commands.values():
+        if args.subcmd == cmd.cmd_str:
+            cmd.do_command(args, environment_yml)
+            return
 
-    print('no explicit subcommand')
-    sys.exit(1)
+    # no explicit subcommand - do local_channels
+    sub_commands['local_channels'].do_command(args, environment_yml)
+    return
 
 
 if __name__ == '__main__':
