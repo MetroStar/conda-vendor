@@ -7,7 +7,13 @@ import pytest
 import hashlib
 import json
 
-from conda_vendor.core import fetch_repodata, CondaChannel, parse_environment
+from conda_vendor.core import (
+    fetch_repodata, 
+    CondaChannel, 
+    parse_environment,
+    get_manifest,
+    create_manifest
+)
 
 
 @pytest.fixture
@@ -476,4 +482,27 @@ def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
     assert expected_file_data == result_no_arch_file_data
 
 
+"""
+      {
+                "url": "https://repo.anaconda.com/pkgs/main/linux-64/libgcc-ng-9.3.0-h5101ec6_17.conda",
+                "name": "libgcc-ng-9.3.0-h5101ec6_17.conda",
+                "validation": {
+                    "type": "sha256",
+                    "value": "49a808720a51c107241a42ac3641cce3d8451ef7cfaf3d68b6e4a3fec2da0676",
+                },
+
+"""
+@patch("conda_vendor.core.CondaLockWrapper.solve")
+def test_get_manifest_conda_forge(mock, minimal_conda_forge_env, fixture_conda_lock_solve_response):
+    expected_name = "conda-mirror-0.8.2-py_1.tar.bz2"
+    mock.return_value = fixture_conda_lock_solve_response
+    result_manifest = get_manifest(minimal_conda_forge_env)
+    result_pkg_names = [d['name'] for d in result_manifest]
+
+    assert expected_name in result_pkg_names
+
+@patch("conda_vendor.core.CondaLockWrapper.solve")
+def test_create_manifest(mock,minimal_conda_forge_env,fixture_conda_lock_solve_response ):
+     mock.return_value = fixture_conda_lock_solve_response
+     create_manifest(minimal_conda_forge_env)
 

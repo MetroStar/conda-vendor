@@ -8,7 +8,8 @@ from conda_vendor.core import (
         create_manifest,
         CondaChannel,
         create_local_channels,
-        create_local_environment_yaml
+        create_local_environment_yaml, 
+        CondaLockWrapper
 )
 from unittest.mock import Mock, patch
 import pytest
@@ -122,7 +123,7 @@ def test_install_from_local_channel_offline(minimal_environment, tmp_path, conda
     assert "python=3.9.5" in process_out
     assert "DryRunExit: Dry run. Exiting." in process_out
 
-
+@pytest.mark.slow
 def test_create_conda_env_from_local_yaml(minimal_environment, tmp_path, conda_channel_fixture):
     test_env_name = "the_test_conda_env"
     path_to_local_env_yaml = tmp_path / "local_yaml.yaml"
@@ -148,4 +149,12 @@ def test_create_conda_env_from_local_yaml(minimal_environment, tmp_path, conda_c
 
     assert "Remove all packages in environment" in process_out_rm_env
     assert test_env_name in process_out_rm_env
+
+## Integration test reaches out 
+def test_conda_lock_solution_with_conda_forge(minimal_conda_forge_env ):
+    expected_name = "conda-mirror"
+    conda_lock = CondaLockWrapper(minimal_conda_forge_env)
+    solution = conda_lock.solve()
+    result_names = [d["name"] for d in solution]
+    assert expected_name in result_names
 

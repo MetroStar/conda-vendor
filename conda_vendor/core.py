@@ -9,32 +9,25 @@ from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 
 class CondaLockWrapper:
-    def __init__(self, platform="linux-64"):
-        self.platform = platform
-        self.specs = None
-        self.solution = None
-
-    def parse(self, environment_yml):
-        parse_return  = parse_environment_file(environment_yml, self.platform)
+    def __init__(self, environment_yml):
+        self.platform='linux-64'
+        parse_return = parse_environment_file(environment_yml, self.platform)
         self.specs = parse_return.specs
-        return self.specs
+        self.channels = parse_return.channels
 
-    def solve(self, specs):
+    def solve(self):
         solved_env = solve_specs_for_arch(
-            "conda", ["main"], specs=specs, platform="linux-64"
+            "conda", self.channels, specs=self.specs, platform=self.platform
         )
-        self.solution = solved_env["actions"]["LINK"]
+        self.solution = solved_env["actions"]["FETCH"]
         return self.solution
-
-    def solution_from_environment(self, environment_yml):
-        return self.solve(self.parse(environment_yml))
-
 
 
 class CondaChannel:
     def __init__(
         self,
         *,
+        manifest = {},
         platforms=['linux-64', 'noarch'],
         channel_root=pathlib.Path("./"),
         channel_name='local_channel'
@@ -46,7 +39,7 @@ class CondaChannel:
         self.channel_root = pathlib.Path(channel_root)
         self.channel_name = pathlib.PurePath(channel_name).name
         self.local_channel = self.channel_root / self.channel_name
-
+        # self.manifest = manifest
         self.channel_info = {}
         for platform in platforms:
             self.channel_info[platform] = {
@@ -213,7 +206,7 @@ class CondaChannel:
 
 
 def default_conda_lock():
-    return CondaLockWrapper()
+    return None #CondaLockWrapper()
 
 def default_conda_channel():
     return CondaChannel(platforms=['linux-64', 'noarch'])
@@ -222,32 +215,37 @@ def default_conda_channel():
 # TODO: need a function to write yaml dump probably just add out to this
 # TODO: this should also make or use a function that makes a local_yaml. Lets just make sure we can resolve
 
-def get_manifest(
-    environment_yml,
-    *,
-    conda_lock=default_conda_lock(),
-    conda_channel=default_conda_channel()
-):
-    link_actions = conda_lock.solution_from_environment(environment_yml)
-    manifest = conda_channel.generate_manifest(conda_solution=link_actions)
-    return manifest
+def get_manifest(environment_yml):
+    conda_lock = CondaLockWrapper(environment_yml)
+    fetch_actions = conda_lock.solve()
+    vendor_manifest_list = []
+    for conda_lock_fetch_info in fetch_actions:
+        url = conda_lock_fetch_info["url"]
+        name = conda_lock_fetch_info["fn"]
+        validation_value = conda_lock_fetch_info["sha256"]
+        validation = {"type": "sha256" , "value" : validation_value }
+        vendor_manifest_list.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "validation": validation
+                }
+        )
+    return vendor_manifest_list
+  
 
 def create_manifest(
     environment_yml,
     *,
-    conda_lock=default_conda_lock(),
-    conda_channel=default_conda_channel(),
     manifest_filename=None
 ):
-    manifest = get_manifest(environment_yml,
-            conda_lock=conda_lock,
-            conda_channel=conda_channel)
-
+    manifest = get_manifest(environment_yml)
+            
     if not manifest_filename:
         manifest_filename = 'vendor_manifest.yaml'
 
     cleaned_name = pathlib.PurePath(manifest_filename).name
-    outpath_file_name = conda_channel.channel_root / cleaned_name
+    outpath_file_name = pathlib.Path('./') / cleaned_name
     with open(outpath_file_name, "w") as f:
         yaml.dump(manifest, f)
     return manifest
@@ -303,8 +301,6 @@ def create_local_channels(
     local_environment_filename = None,
 ):
     manifest = create_manifest(environment_yml,
-            conda_lock=conda_lock,
-            conda_channel=conda_channel,
             manifest_filename=manifest_filename
             )
 
