@@ -160,7 +160,7 @@ def main():
     parser = argparse.ArgumentParser(
             description='conda-vendor creates a local conda environment')
     sub_parsers = parser.add_subparsers(
-        help='some string',
+        help='command options',
         dest='subcmd',
         required=False)
 
@@ -190,10 +190,9 @@ def main():
         sys.stderr.write(f'enviroment file \'{str(args.file)}\' does not exist\n')
         sys.exit(1)
 
-    for cmd in sub_commands.values():
-        if args.subcmd == cmd.cmd_str:
-            cmd.do_command(args, environment_yml)
-            return
+    if args.subcmd in sub_commands:
+        sub_commands[args.subcmd].do_command(args, environment_yml)
+        return
 
     # no explicit subcommand - do local_channels
     sub_commands['local_channels'].do_command(args, environment_yml)
