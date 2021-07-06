@@ -1,6 +1,7 @@
 import argparse
-import sys
+import os
 import pathlib
+import sys
 import yaml
 
 import conda_vendor.core
@@ -100,48 +101,54 @@ class CommandLocalChannels:
     def create(environment_yml, *,
             manifest_filename=None,
             local_environment_name=None,
-            local_environment_filename=None):
+            local_environment_filename=None,
+            local_directory=None):
 
-        conda_vendor.core.create_local_channels(environment_yml,
-                manifest_filename=manifest_filename,
-                local_environment_name=local_environment_name,
-                local_environment_filename=local_environment_filename)
+        if not local_directory:
+            conda_vendor.core.create_local_channels(environment_yml,
+                    manifest_filename=manifest_filename,
+                    local_environment_name=local_environment_name,
+                    local_environment_filename=local_environment_filename)
+        else:
+            local_path = pathlib.Path(local_directory)
+            l_dir, l_name = os.path.split(local_path.absolute())
 
-    @staticmethod
-    def dry_run(environment_yml, *,
-            manifest_filename=None,
-            local_environment_name=None,
-            local_environment_filename=None):
-        print('dry-run')
+            conda_channel = conda_vendor.core.CondaChannel(
+                    platforms=['linux-64', 'noarch'],
+                    channel_root=l_dir,
+                    channel_name=l_name)
+
+            conda_vendor.core.create_local_channels(environment_yml,
+                    conda_channel = conda_channel,
+                    manifest_filename=manifest_filename,
+                    local_environment_name=local_environment_name,
+                    local_environment_filename=local_environment_filename)
+
 
     def add_command(self, parser):
         local_channels_parser = parser.add_parser('local_channels',
             help='local channel commands')
         local_channels_parser.add_argument('-c', '--create', action='store_true',
             help='create local channel data')
-        local_channels_parser.add_argument('--dry-run', action='store_true',
-            help='local environment filename')
+#        local_channels_parser.add_argument('--dry-run', action='store_true',
+#            help='local environment filename')
         local_channels_parser.add_argument('-f', '--file', type=str,
             help='environment.yaml file')
+        local_channels_parser.add_argument('-l', '--local-dir', type=str,
+            help='create local directories here')
         local_channels_parser.add_argument('-m', '--manifest-filename', type=str,
-             help='write manifest to this file')
+            help='write manifest to this file')
         local_channels_parser.add_argument('-n', '--name', type=str,
             help='local environment name')
         local_channels_parser.add_argument('-e', '--environment-file', type=str,
             help='local environment filename')
 
     def do_command(self, args, environment_yml):
-        if args.dry_run:
-            self.dry_run(environment_yml,
-                    manifest_filename=args.manifest_filename,
-                    local_environment_name=args.name,
-                    local_environment_filename=args.environment_file)
-        else:
-            self.create(environment_yml,
-                    manifest_filename=args.manifest_filename,
-                    local_environment_name=args.name,
-                    local_environment_filename=args.environment_file)
-
+        self.create(environment_yml,
+                manifest_filename=args.manifest_filename,
+                local_environment_name=args.name,
+                local_environment_filename=args.environment_file,
+                local_directory=args.local_dir)
 
 def main():
     parser = argparse.ArgumentParser(

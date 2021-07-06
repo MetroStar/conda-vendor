@@ -33,14 +33,20 @@ class CondaLockWrapper:
 
 class CondaChannel:
     def __init__(
-        self, platforms=["linux-64", "noarch"], channel_path=pathlib.Path("./")
+        self,
+        *,
+        platforms=['linux-64', 'noarch'],
+        channel_root=pathlib.Path("./"),
+        channel_name='local_channel'
     ):
         self.base_url = "https://repo.anaconda.com/pkgs/main/"
         self.platforms = platforms
         self._repodata_dict = None
         self._requires_fetch = True
-        self.channel_root = pathlib.Path(channel_path)
-        self.local_channel = self.channel_root / "local_channel"
+        self.channel_root = pathlib.Path(channel_root)
+        self.channel_name = pathlib.PurePath(channel_name).name
+        self.local_channel = self.channel_root / self.channel_name
+
         self.channel_info = {}
         for platform in platforms:
             self.channel_info[platform] = {
@@ -49,7 +55,7 @@ class CondaChannel:
             }
 
     def create_directories(self):
-        self.local_channel.mkdir(exist_ok=True)
+        self.local_channel.mkdir(parents=True, exist_ok=True)
         for platform, info in self.channel_info.items():
             info["dir"].mkdir(exist_ok=True)
 

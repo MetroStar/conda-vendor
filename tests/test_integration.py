@@ -18,7 +18,7 @@ import yaml
 
 @pytest.fixture
 def conda_channel_fixture(tmp_path, mock_requests_repodata, scope="module"):
-    return CondaChannel(channel_path=tmp_path)
+    return CondaChannel(channel_root=tmp_path)
 
 def test_generate_manifest(
     mock_requests_repodata,

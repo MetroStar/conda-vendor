@@ -12,7 +12,7 @@ from conda_vendor.core import fetch_repodata, CondaChannel, parse_environment
 
 @pytest.fixture
 def conda_channel_fixture(tmp_path, scope="module"):
-    return CondaChannel(channel_path=tmp_path)
+    return CondaChannel(channel_root=tmp_path)
 
 
 def test_conda_channel_init(conda_channel_fixture):
@@ -254,7 +254,7 @@ def test_generate_repodata(conda_channel_fixture, tmp_path):
     with open(expected_file_path_linux, "r") as f:
         result_data = json.loads(f.read())
         assert expected_linux == result_data
-    
+
 
 
 @patch("requests.get")
@@ -363,17 +363,17 @@ def test_format_manifest(conda_channel_fixture, repodata_output):
 
 @patch("requests.get")
 def test_download_and_validate_correct_sha(mock_get, tmp_path):
-    
+
     expected_raw = bytearray([45, 23, 8, 64, 1])
     mock_get.return_value = _mock_response(content=expected_raw)
     expected_hash = hashlib.sha256(expected_raw).hexdigest()
-    
+
     output = tmp_path / "downloads"
     fake_url = "https://my.downloads.to/data.tar.bz2"
     CondaChannel.download_and_validate(
         output, fake_url, expected_hash
     )
-    
+
     with open(output, "rb") as f:
         assert f.read() == expected_raw
 
@@ -383,7 +383,7 @@ def test_download_and_validate_incorrect_sha(mock_get, tmp_path):
     expected_raw = bytearray([45, 23, 8, 64, 1])
     mock_get.return_value = _mock_response(content=expected_raw)
     expected_incorrect_hash = hashlib.sha256(bytearray([8, 64, 1])).hexdigest()
-    
+
     output = tmp_path / "downloads"
     fake_url = "https://my.downloads.to/data.tar.bz2"
     with pytest.raises(RuntimeError) as error:
