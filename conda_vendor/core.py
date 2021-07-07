@@ -9,43 +9,96 @@ from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 
 class CondaLockWrapper:
-    def __init__(self, environment_yml):
-        self.platform='linux-64'
-        parse_return = parse_environment_file(environment_yml, self.platform)
-        self.specs = parse_return.specs
-        self.channels = parse_return.channels
+    pass
 
-    def solve(self):
-        solved_env = solve_specs_for_arch(
-            "conda", self.channels, specs=self.specs, platform=self.platform
-        )
-        self.solution = solved_env["actions"]["FETCH"]
-        return self.solution
+#class CondaLockWrapper:
+#    def __init__(self, environment_yml):
+#        self.platform='linux-64'
+#        parse_return = parse_environment_file(environment_yml, self.platform)
+#        self.specs = parse_return.specs
+#        self.channels = parse_return.channels
+#
+#    def solve(self):
+#        solved_env = solve_specs_for_arch(
+#            "conda", self.channels, specs=self.specs, platform=self.platform
+#        )
+#        self.solution = solved_env["actions"]["FETCH"]
+#        return self.solution
 
 
 class CondaChannel:
     def __init__(
         self,
+        environment_yml,
         *,
-        manifest = {},
-        platforms=['linux-64', 'noarch'],
+
         channel_root=pathlib.Path("./"),
         channel_name='local_channel'
     ):
-        self.base_url = "https://repo.anaconda.com/pkgs/main/"
-        self.platforms = platforms
-        self._repodata_dict = None
-        self._requires_fetch = True
+        parse_return = parse_environment_file(environment_yml, 'linux-64')
+        self.env = {
+                'specs': parse_return.specs,
+                'channels': parse_return.channels
+                }
+        with open(environment_yml) as f:
+            self.env['environment'] = yaml.load(f, Loader=yaml.SafeLoader)
+
+        self.platforms = ['linux-64', 'noarch']
+        self.manifest = None
+
         self.channel_root = pathlib.Path(channel_root)
         self.channel_name = pathlib.PurePath(channel_name).name
         self.local_channel = self.channel_root / self.channel_name
-        # self.manifest = manifest
-        self.channel_info = {}
-        for platform in platforms:
-            self.channel_info[platform] = {
-                "dir": self.local_channel / platform,
-                "url": self.base_url + platform + "/repodata.json",
-            }
+
+        self._repodata_dict = None
+        self._requires_fetch = True
+
+
+#        self.channel_info = {}
+#        for platform in platforms:
+#            self.channel_info[platform] = {
+#                "dir": self.local_channel / platform,
+#                "url": self.base_url + platform + "/repodata.json",
+#            }
+
+    #TODO: make this idempotent
+    def solve_environment(self):
+        self.env['solution'] = solve_specs_for_arch(
+            "conda", self.env['channels'], specs=self.env['specs'],
+            platform='linux-64'
+        )
+        self.env['fetch_actions'] = solved_env["actions"]["FETCH"]
+        return self.env['fetch_actions']
+
+    def get_manifest(self):
+        fetch_actions = self.solve_environment()
+        vendor_manifest_list = []
+        for conda_lock_fetch_info in fetch_actions:
+            url = conda_lock_fetch_info['url']
+            name = conda_lock_fetch_info['fn']
+            validation_value = conda_lock_fetch_info['sha256']
+            validation = {'type': 'sha256', 'value': validation_value}
+            vendor_manifest_list.append(
+                    {
+                        'url': url,
+                        'name': name,
+                        'validation': validation
+                    }
+            )
+        self.manifest = vendor_manifest_list
+        return self.manifest
+
+    def create_manifest(self, *, manifest_filename=None):
+        manifest = get_manifest()
+
+        if not manifest_filename:
+            manifest_filename = 'vendor_manifest.yaml'
+
+        cleaned_name = pathlib.PurePath(manifest_filename).name
+        outpath_file_name = self.channel_root / cleaned_name
+        with open(outpath_file_name, "w") as f:
+            yaml.dump(manifest, f)
+        return manifest
 
     def create_directories(self):
         self.local_channel.mkdir(parents=True, exist_ok=True)
@@ -209,46 +262,20 @@ def default_conda_lock():
     return None #CondaLockWrapper()
 
 def default_conda_channel():
-    return CondaChannel(platforms=['linux-64', 'noarch'])
-
-
-# TODO: need a function to write yaml dump probably just add out to this
-# TODO: this should also make or use a function that makes a local_yaml. Lets just make sure we can resolve
+    return None #CondaChannel(platforms=['linux-64', 'noarch'])
 
 def get_manifest(environment_yml):
-    conda_lock = CondaLockWrapper(environment_yml)
-    fetch_actions = conda_lock.solve()
-    vendor_manifest_list = []
-    for conda_lock_fetch_info in fetch_actions:
-        url = conda_lock_fetch_info["url"]
-        name = conda_lock_fetch_info["fn"]
-        validation_value = conda_lock_fetch_info["sha256"]
-        validation = {"type": "sha256" , "value" : validation_value }
-        vendor_manifest_list.append(
-                {
-                    "url": url,
-                    "name": name,
-                    "validation": validation
-                }
-        )
-    return vendor_manifest_list
-  
+    conda_channel = CondaChannel(environment_yml)
+    return conda_channel.get_manifest()
 
 def create_manifest(
     environment_yml,
     *,
     manifest_filename=None
 ):
-    manifest = get_manifest(environment_yml)
-            
-    if not manifest_filename:
-        manifest_filename = 'vendor_manifest.yaml'
-
-    cleaned_name = pathlib.PurePath(manifest_filename).name
-    outpath_file_name = pathlib.Path('./') / cleaned_name
-    with open(outpath_file_name, "w") as f:
-        yaml.dump(manifest, f)
-    return manifest
+    conda_channel = CondaChannel(environment_yml)
+    return conda_channel.create_manifest(environment_yml,
+            manifest_filename=manifest_filename)
 
 def get_local_environment_yaml(
     environment_yml,

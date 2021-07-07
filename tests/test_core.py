@@ -8,8 +8,8 @@ import hashlib
 import json
 
 from conda_vendor.core import (
-    fetch_repodata, 
-    CondaChannel, 
+    fetch_repodata,
+    CondaChannel,
     parse_environment,
     get_manifest,
     create_manifest
@@ -492,7 +492,7 @@ def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
                 },
 
 """
-@patch("conda_vendor.core.CondaLockWrapper.solve")
+@patch("conda_vendor.core.CondaChannel.solve_environment")
 def test_get_manifest_conda_forge(mock, minimal_conda_forge_env, fixture_conda_lock_solve_response):
     expected_name = "conda-mirror-0.8.2-py_1.tar.bz2"
     mock.return_value = fixture_conda_lock_solve_response
