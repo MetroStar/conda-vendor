@@ -17,9 +17,7 @@ import requests
 import subprocess
 import yaml
 
-@pytest.fixture
-def conda_channel_fixture(tmp_path, mock_requests_repodata, scope="module"):
-    return CondaChannel(channel_root=tmp_path)
+
 
 def test_generate_manifest(
     mock_requests_repodata,
@@ -99,18 +97,18 @@ def test_run_create_manifest(minimal_environment, vendor_manifest_dict,conda_cha
     vendor_manifest_dict == result_manifest
 
 
-def test_create_local_environment_yaml(minimal_environment,conda_channel_fixture):
+# def test_create_local_environment_yaml(minimal_environment,conda_channel_fixture):
 
-    test_env_name = "THE_BEST_ENV"
-    expected_file_path =  conda_channel_fixture.channel_root / "local_yaml.yaml"
-    expected_local_channel = "file://" + str(conda_channel_fixture.local_channel)
-    result = create_local_environment_yaml(minimal_environment, conda_channel= conda_channel_fixture, local_environment_name= test_env_name)
+#     test_env_name = "THE_BEST_ENV"
+#     expected_file_path =  conda_channel_fixture.channel_root / "local_yaml.yaml"
+#     expected_local_channel = "file://" + str(conda_channel_fixture.local_channel)
+#     result = create_local_environment_yaml(minimal_environment, conda_channel= conda_channel_fixture, local_environment_name= test_env_name)
 
-    with open(expected_file_path, "r") as f:
-        result_yaml = yaml.load(f, Loader=yaml.SafeLoader)
-    assert result_yaml['name'] == test_env_name
-    assert result_yaml['channels'][0] == expected_local_channel
-    assert result_yaml['channels'][1] == "nodefaults"
+#     with open(expected_file_path, "r") as f:
+#         result_yaml = yaml.load(f, Loader=yaml.SafeLoader)
+#     assert result_yaml['name'] == test_env_name
+#     assert result_yaml['channels'][0] == expected_local_channel
+#     assert result_yaml['channels'][1] == "nodefaults"
 
 
 def test_install_from_local_channel_offline(minimal_environment, tmp_path, conda_channel_fixture):
@@ -123,15 +121,20 @@ def test_install_from_local_channel_offline(minimal_environment, tmp_path, conda
     assert "python=3.9.5" in process_out
     assert "DryRunExit: Dry run. Exiting." in process_out
 
-@pytest.mark.slow
-def test_create_conda_env_from_local_yaml(minimal_environment, tmp_path, conda_channel_fixture):
+def test_create_conda_env_from_local_yaml(tmp_path, conda_channel_fixture):
     test_env_name = "the_test_conda_env"
     path_to_local_env_yaml = tmp_path / "local_yaml.yaml"
-    create_local_channels(minimal_environment, conda_channel=conda_channel_fixture, local_environment_name=test_env_name)
-
+    create_local_channels(conda_channel_fixture, 
+        local_environment_name=test_env_name)
+    cmd_str_clean = "conda clean --all -y "
     cmd_str_create_env = f"conda env create  -f {path_to_local_env_yaml} --offline "
-    cmd_str_check_env  = "conda env list"
+    cmd_str_check_env  = "conda env list "
+    cmd_str_list_explicit = f"conda list -n {test_env_name} --explicit"
     cmd_rm_env = f"conda env remove -n {test_env_name}"
+
+    process_out_clean = subprocess.check_output(cmd_str_clean,
+                                        stderr=subprocess.STDOUT,
+                                        shell=True).decode('utf-8')
 
     process_out_create_env = subprocess.check_output(cmd_str_create_env,
                                         stderr=subprocess.STDOUT,
@@ -142,6 +145,11 @@ def test_create_conda_env_from_local_yaml(minimal_environment, tmp_path, conda_c
                                           shell=True).decode('utf-8')
 
     assert test_env_name in process_out_env_list
+
+    process_out_list_explicit = subprocess.check_output(cmd_str_list_explicit,
+                                          stderr=subprocess.STDOUT,
+                                          shell=True).decode('utf-8')
+    assert "https" not in process_out_list_explicit
 
     process_out_rm_env = subprocess.check_output(cmd_rm_env,
                                         stderr=subprocess.STDOUT,
@@ -158,3 +166,9 @@ def test_conda_lock_solution_with_conda_forge(minimal_conda_forge_env ):
     result_names = [d["name"] for d in solution]
     assert expected_name in result_names
 
+def test_download_binaries_with_conda_forge(conda_channel_fixture, tmp_path):
+    conda_channel_fixture.download_binaries()
+    print(tmp_path)
+    assert 1==0
+
+    

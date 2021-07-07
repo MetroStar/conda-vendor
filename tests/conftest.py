@@ -3,13 +3,18 @@ from unittest.mock import Mock
 import requests
 from requests import Response
 import json
-from conda_vendor.core import CondaLockWrapper
+from conda_vendor.core import  CondaChannel
 from tests.repodata_fixtures import (
     vendor_manifest_dict,
     dot_conda_and_tar_list,
     python_395_pkg_list,
     repodata_output,
 )
+
+
+@pytest.fixture
+def conda_channel_fixture(tmp_path,minimal_conda_forge_env, scope="module"):
+    return CondaChannel(minimal_conda_forge_env, channel_root=tmp_path )
 
 
 @pytest.fixture(scope="function")
@@ -33,7 +38,9 @@ channels:
 dependencies:
 - python=3.9.5
 - conda-mirror"""
+    
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
+    print(fn)
     fn.write(content)
     return fn
 
@@ -45,6 +52,12 @@ def mock_requests_repodata(unfiltered_repo_data_response):
     requests_mock.get.return_value = actual_result_mock
     actual_result_mock.json.return_value = unfiltered_repo_data_response
     return requests_mock
+
+@pytest.fixture(scope="module")
+def fixture_conda_lock_small_response():
+    return [{"arch": "x86_64", "build": "h27cfd23_0", "build_number": 0, "channel": "https://conda.anaconda.org/main/linux-64", "constrains": [], "depends": ["libgcc-ng >=7.3.0", "ncurses >=6.2,<7.0a0"], "fn": "readline-8.1-h27cfd23_0.tar.bz2", "license": "GPL-3.0", "md5": "b3a5e0e61af068595cfd411db9960e1f", "name": "readline", "platform": "linux", "sha256": "fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7", "size": 475570, "subdir": "linux-64", "timestamp": 1611868595060, "url": "https://conda.anaconda.org/main/linux-64/readline-8.1-h27cfd23_0.tar.bz2", "version": "8.1"}]
+
+
 
 
 @pytest.fixture(scope="module")
@@ -59,19 +72,7 @@ def mock_requests_content(unfiltered_repo_data_response):
     actual_result_mock.content.return_value = bytearray([9, 9, 9])
     return requests_mock
 
-#I think this is trash 
-@pytest.fixture
-def mock_conda_lock(
-    unfiltered_repo_data_response, mock_conda_solve_value, mock_conda_parse_value
-):
-    CondaLockWrapper_mock = Mock(spec=CondaLockWrapper)
-    CondaLockWrapper_mock.parse.return_value = mock_conda_parse_value
-    CondaLockWrapper_mock.solve.return_value = mock_conda_solve_value
-    CondaLockWrapper_mock.solution_from_environment.return_value = (
-        mock_conda_solve_value
-    )
 
-    return CondaLockWrapper_mock
 
 
 @pytest.fixture(scope="module")

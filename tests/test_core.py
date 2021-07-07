@@ -6,19 +6,18 @@ import os
 import pytest
 import hashlib
 import json
+from unittest import TestCase
+from yaml import safe_load
+from yaml.loader import SafeLoader
+import yaml
 
 from conda_vendor.core import (
-    fetch_repodata,
     CondaChannel,
-    parse_environment,
     get_manifest,
-    create_manifest
+    create_manifest,
+    get_local_environment_yaml,
+    create_local_environment_yaml
 )
-
-
-@pytest.fixture
-def conda_channel_fixture(tmp_path, scope="module"):
-    return CondaChannel(channel_root=tmp_path)
 
 
 def test_conda_channel_init(conda_channel_fixture):
@@ -367,7 +366,7 @@ def test_format_manifest(conda_channel_fixture, repodata_output):
     assert actual_result == expected_result
 
 
-@patch("requests.get")
+@patch("conda_vendor.core.CondaChannel.improved_download")
 def test_download_and_validate_correct_sha(mock_get, tmp_path):
 
     expected_raw = bytearray([45, 23, 8, 64, 1])
@@ -384,7 +383,7 @@ def test_download_and_validate_correct_sha(mock_get, tmp_path):
         assert f.read() == expected_raw
 
 
-@patch("requests.get")
+@patch("conda_vendor.core.CondaChannel.improved_download")
 def test_download_and_validate_incorrect_sha(mock_get, tmp_path):
     expected_raw = bytearray([45, 23, 8, 64, 1])
     mock_get.return_value = _mock_response(content=expected_raw)
@@ -425,13 +424,10 @@ def _mock_response(
         )
     return mock_resp
 
-@patch("requests.get")
-def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
-    mock_resp = _mock_response(content=bytearray([9, 9, 9]))
-    mock_get.return_value = mock_resp
-    # mock_requests_download_content.return_value = Response(bytearray([9, 9, 9]))
+@patch("conda_vendor.core.CondaChannel.improved_download")
+def test_download_binaries_core( mock_get, tmp_path, conda_channel_fixture):
     expected_sha = hashlib.sha256(bytearray([9, 9, 9])).hexdigest()
-    test_manifest_dict = {
+    test_manifest_dict =  {
         "resources": [
             {
                 "url": "https://repo.anaconda.com/pkgs/main/linux-64/_libgcc_mutex-0.1-main.conda",
@@ -451,14 +447,16 @@ def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
             },
         ]
     }
-
+    conda_channel_fixture.manifest = test_manifest_dict
+    mock_resp = _mock_response(content=bytearray([9, 9, 9]))
+    mock_get.return_value = mock_resp
+    
     expected_linux_package_file_name = test_manifest_dict["resources"][0]["name"]
     expected_noarch_package_file_name = test_manifest_dict["resources"][1]["name"]
     expected_file_data = bytearray([9, 9, 9])
     conda_channel_fixture._requires_fetch = False
-    conda_channel_fixture.download_binaries(
-        test_manifest_dict
-    )
+    conda_channel_fixture.download_binaries() 
+
     expected_linux_package_path = (
         tmp_path / "local_channel" / "linux-64" / expected_linux_package_file_name
     )
@@ -493,16 +491,228 @@ def test_download_binaries( mock_get, tmp_path, conda_channel_fixture):
 
 """
 @patch("conda_vendor.core.CondaChannel.solve_environment")
-def test_get_manifest_conda_forge(mock, minimal_conda_forge_env, fixture_conda_lock_solve_response):
+def test_get_manifest_conda_forge(mock, fixture_conda_lock_solve_response,conda_channel_fixture):
     expected_name = "conda-mirror-0.8.2-py_1.tar.bz2"
     mock.return_value = fixture_conda_lock_solve_response
-    result_manifest = get_manifest(minimal_conda_forge_env)
+    result_manifest = get_manifest(conda_channel_fixture)
     result_pkg_names = [d['name'] for d in result_manifest]
 
     assert expected_name in result_pkg_names
 
-@patch("conda_vendor.core.CondaLockWrapper.solve")
-def test_create_manifest(mock,minimal_conda_forge_env,fixture_conda_lock_solve_response ):
+@patch("conda_vendor.core.CondaChannel.solve_environment")
+def test_create_manifest_small(mock, fixture_conda_lock_small_response ,conda_channel_fixture, tmp_path):
+
+     expected_manifest =    [
+        {
+        'url': 'https://conda.anaconda.org/main/linux-64/readline-8.1-h27cfd23_0.tar.bz2', 
+        'name': 'readline-8.1-h27cfd23_0.tar.bz2', 
+        'validation': {'type': 'sha256', 'value': 'fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7'}
+        }
+     ]
+     expected_path = tmp_path / "vendor_manifest.yaml"
+     mock.return_value = fixture_conda_lock_small_response
+     create_manifest(conda_channel_fixture)
+     assert expected_path.exists()
+     with open(expected_path, "r") as f : 
+         result_manifest = yaml.load(f, Loader=SafeLoader)
+     TestCase().assertDictEqual(result_manifest[0], expected_manifest[0])
+
+
+@patch("conda_vendor.core.CondaChannel.solve_environment")
+def test_create_manifest_count_entries(mock, fixture_conda_lock_solve_response, conda_channel_fixture, tmp_path):
+     expected_path = tmp_path / "vendor_manifest.yaml"
      mock.return_value = fixture_conda_lock_solve_response
-     create_manifest(minimal_conda_forge_env)
+     create_manifest(conda_channel_fixture)
+     assert expected_path.exists()
+     with open(expected_path, "r") as f : 
+         result_manifest = yaml.load(f, Loader=SafeLoader)
+     assert len(result_manifest) == len(fixture_conda_lock_solve_response)
+
+
+def test_get_local_environment_yaml(conda_channel_fixture,tmp_path):
+     result_yaml = get_local_environment_yaml(conda_channel_fixture)
+     expected_yaml = {'name': 'local_minimal_env', 
+     'channels': [f'file://{tmp_path}/local_channel', 'nodefaults'], 
+     'dependencies': ['python=3.9.5', 'conda-mirror']}
+     TestCase().assertDictEqual(expected_yaml, result_yaml)
+
+def test_get_local_environment_yaml_custom_name(conda_channel_fixture,tmp_path):
+     result_yaml = get_local_environment_yaml(conda_channel_fixture,local_environment_name="THE_BEST_ENV")
+     expected_yaml = {'name': 'THE_BEST_ENV', 
+     'channels': [f'file://{tmp_path}/local_channel', 'nodefaults'], 
+     'dependencies': ['python=3.9.5', 'conda-mirror']}
+     TestCase().assertDictEqual(expected_yaml, result_yaml)
+
+def test_create_local_environment(conda_channel_fixture,tmp_path):
+     create_local_environment_yaml(conda_channel_fixture)
+     expected_path = tmp_path /"local_yaml.yaml"
+     expected_yaml = {'name': 'local_minimal_env', 
+     'channels': [f'file://{tmp_path}/local_channel', 'nodefaults'], 
+     'dependencies': ['python=3.9.5', 'conda-mirror']}
+     with open(expected_path,  "r" ) as f:
+         result_yaml = yaml.load(f, Loader=SafeLoader)
+     TestCase().assertDictEqual(expected_yaml, result_yaml)
+
+
+def test_create_local_environment_named(conda_channel_fixture,tmp_path):
+     filename = 'out.yml'
+     create_local_environment_yaml(conda_channel_fixture,
+        local_environment_name='DUMMY_ENV',
+        local_environment_filename=filename
+     )
+     expected_path = tmp_path / filename
+     expected_yaml = {'name': 'DUMMY_ENV', 
+     'channels': [f'file://{tmp_path}/local_channel', 'nodefaults'], 
+     'dependencies': ['python=3.9.5', 'conda-mirror']}
+     with open(expected_path,  "r" ) as f:
+         result_yaml = yaml.load(f, Loader=SafeLoader)
+     TestCase().assertDictEqual(expected_yaml, result_yaml)
+
+
+
+@patch("conda_vendor.core.CondaChannel.solve_environment")
+def test_generate_repo_data(mock, fixture_conda_lock_small_response,  conda_channel_fixture):
+    expected_repo_data_dict = {
+    'linux-64': {
+        'info': {'subdir': 'linux-64'}, 
+        'packages': {'readline-8.1-h27cfd23_0.tar.bz2': 
+            {'build': 'h27cfd23_0', 
+            'build_number': 0, 'constrains': [], 'depends': ['libgcc-ng >=7.3.0', 
+            'ncurses >=6.2,<7.0a0'], 
+            'license': 'GPL-3.0',
+            'md5': 'b3a5e0e61af068595cfd411db9960e1f', 
+            'name': 'readline', 
+            'platform': 'linux', 
+            'sha256': 'fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7',
+            'size': 475570, 
+            'subdir': 'linux-64',
+            'timestamp': 1611868595060, 
+            'version': '8.1'}
+            }, 
+        'packges.conda': {}
+        }, 
+     'noarch': {
+        'info': {'subdir': 'noarch'}, 
+        'packages': {}, 
+        'packges.conda': {}
+        }
+    }
+    mock.return_value = fixture_conda_lock_small_response
+    result = conda_channel_fixture.generate_repo_data()
+    print(result)
+    TestCase().assertDictEqual(expected_repo_data_dict, result)
+
+def test_write_arch_repo_data(conda_channel_fixture):
+    expected_path = conda_channel_fixture.local_channel /"linux-64" / "repodata.json"
+    expected_repo_data = {
+        'info': {'subdir': 'linux-64'}, 
+        'packages': {'readline-8.1-h27cfd23_0.tar.bz2': 
+            {'build': 'h27cfd23_0', 
+            'build_number': 0, 'constrains': [], 'depends': ['libgcc-ng >=7.3.0', 
+            'ncurses >=6.2,<7.0a0'], 
+            'license': 'GPL-3.0',
+            'md5': 'b3a5e0e61af068595cfd411db9960e1f', 
+            'name': 'readline', 
+            'platform': 'linux', 
+            'sha256': 'fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7',
+            'size': 475570, 
+            'subdir': 'linux-64',
+            'timestamp': 1611868595060, 
+            'version': '8.1'}
+            }, 
+        'packges.conda': {}
+        }
+
+    conda_channel_fixture.all_repo_data = {
+    'linux-64': {
+        'info': {'subdir': 'linux-64'}, 
+        'packages': {'readline-8.1-h27cfd23_0.tar.bz2': 
+            {'build': 'h27cfd23_0', 
+            'build_number': 0, 'constrains': [], 'depends': ['libgcc-ng >=7.3.0', 
+            'ncurses >=6.2,<7.0a0'], 
+            'license': 'GPL-3.0',
+            'md5': 'b3a5e0e61af068595cfd411db9960e1f', 
+            'name': 'readline', 
+            'platform': 'linux', 
+            'sha256': 'fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7',
+            'size': 475570, 
+            'subdir': 'linux-64',
+            'timestamp': 1611868595060, 
+            'version': '8.1'}
+            }, 
+        'packges.conda': {}
+        }, 
+     'noarch': {
+        'info': {'subdir': 'noarch'}, 
+        'packages': {}, 
+        'packges.conda': {}
+        }
+    }
+
+    conda_channel_fixture.write_arch_repo_data("linux-64")
+    with open(expected_path, "r") as f :
+        result =  json.loads(f.read())
+
+    TestCase().assertDictEqual(expected_repo_data, result)
+    
+    
+
+    
+
+
+
+def test_write_repo_data( conda_channel_fixture, tmp_path):
+    expected_path_linux = conda_channel_fixture.local_channel /"linux-64" / "repodata.json"
+    expected_path_noarch = conda_channel_fixture.local_channel /"noarch" / "repodata.json"
+    conda_channel_fixture.all_repo_data = {
+    'linux-64': {
+        'info': {'subdir': 'linux-64'}, 
+        'packages': {'readline-8.1-h27cfd23_0.tar.bz2': 
+            {'build': 'h27cfd23_0', 
+            'build_number': 0, 'constrains': [], 'depends': ['libgcc-ng >=7.3.0', 
+            'ncurses >=6.2,<7.0a0'], 
+            'license': 'GPL-3.0',
+            'md5': 'b3a5e0e61af068595cfd411db9960e1f', 
+            'name': 'readline', 
+            'platform': 'linux', 
+            'sha256': 'fa1a041badf4beeba06f51b17a3214a5509015eef4daf1925d01c207f6b00ca7',
+            'size': 475570, 
+            'subdir': 'linux-64',
+            'timestamp': 1611868595060, 
+            'version': '8.1'}
+            }, 
+        'packges.conda': {}
+        }, 
+     'noarch': {
+        'info': {'subdir': 'noarch'}, 
+        'packages': {}, 
+        'packges.conda': {}
+        }
+    }
+    expected_linux = conda_channel_fixture.all_repo_data['linux-64']
+    expected_noarch = conda_channel_fixture.all_repo_data['noarch']
+    conda_channel_fixture.write_repo_data()
+
+    with open(expected_path_linux, "r") as f :
+        result_linux =  json.loads(f.read())
+    TestCase().assertDictEqual(expected_linux, result_linux)
+
+    with open(expected_path_noarch, "r") as f :
+        result_noarch =  json.loads(f.read())
+    TestCase().assertDictEqual(expected_noarch, result_noarch)
+
+
+    
+    
+    
+
+
+
+    
+
+
+
+
+     
+
 
