@@ -53,7 +53,6 @@ class CondaChannel:
         self._repodata_dict = None
         self._requires_fetch = True
 
-
 #        self.channel_info = {}
 #        for platform in platforms:
 #            self.channel_info[platform] = {
@@ -63,14 +62,19 @@ class CondaChannel:
 
     #TODO: make this idempotent
     def solve_environment(self):
-        self.env['solution'] = solve_specs_for_arch(
-            "conda", self.env['channels'], specs=self.env['specs'],
-            platform='linux-64'
-        )
-        self.env['fetch_actions'] = solved_env["actions"]["FETCH"]
+        if not self.env.get('solution', None):
+            solution = solve_specs_for_arch(
+                "conda", self.env['channels'], specs=self.env['specs'],
+                platform='linux-64'
+            )
+            self.env['solution'] = solution
+            self.env['fetch_actions'] = solution['action']['FETCH']
         return self.env['fetch_actions']
 
     def get_manifest(self):
+        if self.manifest:
+            return self.manifest
+
         fetch_actions = self.solve_environment()
         vendor_manifest_list = []
         for conda_lock_fetch_info in fetch_actions:
