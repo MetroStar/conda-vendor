@@ -35,8 +35,9 @@ def minimal_conda_forge_env(tmpdir_factory):
 channels:
 - main
 - conda-forge
+- nodefaults
 dependencies:
-- python=3.9.5
+- python=>3.6.1
 - conda-mirror"""
     
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")

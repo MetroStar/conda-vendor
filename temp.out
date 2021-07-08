@@ -1,0 +1,302 @@
+[
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "main",
+  "channel": "main",
+  "dist_name": "_libgcc_mutex-0.1-main",
+  "name": "_libgcc_mutex",
+  "platform": "linux-64",
+  "version": "0.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1,
+  "build_string": "h06a4308_1",
+  "channel": "main",
+  "dist_name": "ca-certificates-2021.5.25-h06a4308_1",
+  "name": "ca-certificates",
+  "platform": "linux-64",
+  "version": "2021.5.25"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 9,
+  "build_string": "h7274673_9",
+  "channel": "main",
+  "dist_name": "ld_impl_linux-64-2.35.1-h7274673_9",
+  "name": "ld_impl_linux-64",
+  "platform": "linux-64",
+  "version": "2.35.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "hdf63c60_0",
+  "channel": "main",
+  "dist_name": "libstdcxx-ng-9.1.0-hdf63c60_0",
+  "name": "libstdcxx-ng",
+  "platform": "linux-64",
+  "version": "9.1.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "h52ac0ba_0",
+  "channel": "main",
+  "dist_name": "tzdata-2021a-h52ac0ba_0",
+  "name": "tzdata",
+  "platform": "noarch",
+  "version": "2021a"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "hdf63c60_0",
+  "channel": "main",
+  "dist_name": "libgcc-ng-9.1.0-hdf63c60_0",
+  "name": "libgcc-ng",
+  "platform": "linux-64",
+  "version": "9.1.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 2,
+  "build_string": "he6710b0_2",
+  "channel": "main",
+  "dist_name": "libffi-3.3-he6710b0_2",
+  "name": "libffi",
+  "platform": "linux-64",
+  "version": "3.3"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1,
+  "build_string": "he6710b0_1",
+  "channel": "main",
+  "dist_name": "ncurses-6.2-he6710b0_1",
+  "name": "ncurses",
+  "platform": "linux-64",
+  "version": "6.2"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "h27cfd23_0",
+  "channel": "main",
+  "dist_name": "openssl-1.1.1k-h27cfd23_0",
+  "name": "openssl",
+  "platform": "linux-64",
+  "version": "1.1.1k"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "h7b6447c_0",
+  "channel": "main",
+  "dist_name": "xz-5.2.5-h7b6447c_0",
+  "name": "xz",
+  "platform": "linux-64",
+  "version": "5.2.5"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "h7b6447c_0",
+  "channel": "main",
+  "dist_name": "yaml-0.2.5-h7b6447c_0",
+  "name": "yaml",
+  "platform": "linux-64",
+  "version": "0.2.5"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 3,
+  "build_string": "h7b6447c_3",
+  "channel": "main",
+  "dist_name": "zlib-1.2.11-h7b6447c_3",
+  "name": "zlib",
+  "platform": "linux-64",
+  "version": "1.2.11"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "h27cfd23_0",
+  "channel": "main",
+  "dist_name": "readline-8.1-h27cfd23_0",
+  "name": "readline",
+  "platform": "linux-64",
+  "version": "8.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "hbc83047_0",
+  "channel": "main",
+  "dist_name": "tk-8.6.10-hbc83047_0",
+  "name": "tk",
+  "platform": "linux-64",
+  "version": "8.6.10"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "hc218d9a_0",
+  "channel": "main",
+  "dist_name": "sqlite-3.36.0-hc218d9a_0",
+  "name": "sqlite",
+  "platform": "linux-64",
+  "version": "3.36.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 4,
+  "build_string": "h12debd9_4",
+  "channel": "main",
+  "dist_name": "python-3.9.5-h12debd9_4",
+  "name": "python",
+  "platform": "linux-64",
+  "version": "3.9.5"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "py39h06a4308_0",
+  "channel": "main",
+  "dist_name": "certifi-2021.5.30-py39h06a4308_0",
+  "name": "certifi",
+  "platform": "linux-64",
+  "version": "2021.5.30"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1003,
+  "build_string": "py39h06a4308_1003",
+  "channel": "main",
+  "dist_name": "chardet-4.0.0-py39h06a4308_1003",
+  "name": "chardet",
+  "platform": "linux-64",
+  "version": "4.0.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "pyhd3eb1b0_0",
+  "channel": "main",
+  "dist_name": "idna-2.10-pyhd3eb1b0_0",
+  "name": "idna",
+  "platform": "noarch",
+  "version": "2.10"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 2,
+  "build_string": "py_2",
+  "channel": "main",
+  "dist_name": "pycparser-2.20-py_2",
+  "name": "pycparser",
+  "platform": "noarch",
+  "version": "2.20"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "py39h06a4308_0",
+  "channel": "main",
+  "dist_name": "pysocks-1.7.1-py39h06a4308_0",
+  "name": "pysocks",
+  "platform": "linux-64",
+  "version": "1.7.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1,
+  "build_string": "py39h27cfd23_1",
+  "channel": "main",
+  "dist_name": "pyyaml-5.4.1-py39h27cfd23_1",
+  "name": "pyyaml",
+  "platform": "linux-64",
+  "version": "5.4.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "pyhd3eb1b0_0",
+  "channel": "main",
+  "dist_name": "six-1.16.0-pyhd3eb1b0_0",
+  "name": "six",
+  "platform": "noarch",
+  "version": "1.16.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "py39h261ae71_0",
+  "channel": "main",
+  "dist_name": "cffi-1.14.5-py39h261ae71_0",
+  "name": "cffi",
+  "platform": "linux-64",
+  "version": "1.14.5"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1003,
+  "build_string": "py39h27cfd23_1003",
+  "channel": "main",
+  "dist_name": "brotlipy-0.7.0-py39h27cfd23_1003",
+  "name": "brotlipy",
+  "platform": "linux-64",
+  "version": "0.7.0"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "py39hd23ed53_0",
+  "channel": "main",
+  "dist_name": "cryptography-3.4.7-py39hd23ed53_0",
+  "name": "cryptography",
+  "platform": "linux-64",
+  "version": "3.4.7"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1,
+  "build_string": "pyhd3eb1b0_1",
+  "channel": "main",
+  "dist_name": "pyopenssl-20.0.1-pyhd3eb1b0_1",
+  "name": "pyopenssl",
+  "platform": "noarch",
+  "version": "20.0.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 1,
+  "build_string": "pyhd3eb1b0_1",
+  "channel": "main",
+  "dist_name": "urllib3-1.26.6-pyhd3eb1b0_1",
+  "name": "urllib3",
+  "platform": "noarch",
+  "version": "1.26.6"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/main",
+  "build_number": 0,
+  "build_string": "pyhd3eb1b0_0",
+  "channel": "main",
+  "dist_name": "requests-2.25.1-pyhd3eb1b0_0",
+  "name": "requests",
+  "platform": "noarch",
+  "version": "2.25.1"
+ },
+ {
+  "base_url": "https://conda.anaconda.org/conda-forge",
+  "build_number": 1,
+  "build_string": "py_1",
+  "channel": "conda-forge",
+  "dist_name": "conda-mirror-0.8.2-py_1",
+  "name": "conda-mirror",
+  "platform": "noarch",
+  "version": "0.8.2"
+ }
+]

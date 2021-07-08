@@ -126,15 +126,20 @@ def test_create_conda_env_from_local_yaml(tmp_path, conda_channel_fixture):
     path_to_local_env_yaml = tmp_path / "local_yaml.yaml"
     create_local_channels(conda_channel_fixture, 
         local_environment_name=test_env_name)
-    cmd_str_clean = "conda clean --all -y "
-    cmd_str_create_env = f"conda env create  -f {path_to_local_env_yaml} --offline "
+    try:
+        cmd_str_clean = f"conda clean --all -y"
+
+        process_out_clean = subprocess.check_output(cmd_str_clean,
+                                        stderr=subprocess.STDOUT,
+                                        shell=True).decode('utf-8')
+    except:
+        pass 
+    cmd_str_create_env = f"conda env create -f {path_to_local_env_yaml} --offline"
     cmd_str_check_env  = "conda env list "
     cmd_str_list_explicit = f"conda list -n {test_env_name} --explicit"
     cmd_rm_env = f"conda env remove -n {test_env_name}"
 
-    process_out_clean = subprocess.check_output(cmd_str_clean,
-                                        stderr=subprocess.STDOUT,
-                                        shell=True).decode('utf-8')
+    
 
     process_out_create_env = subprocess.check_output(cmd_str_create_env,
                                         stderr=subprocess.STDOUT,
