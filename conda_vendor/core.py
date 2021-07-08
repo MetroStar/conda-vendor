@@ -10,6 +10,7 @@ import sys
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 import logging as logger
+import os 
 class CondaLockWrapper:
     pass
 
@@ -30,11 +31,17 @@ class CondaChannel:
         with open(environment_yml) as f:
             self.env_deps['environment'] = yaml.load(f, Loader=yaml.SafeLoader)
         
+        bad_channels = ['nodefaults']
+        self.channels = [
+            chan for chan in self.env_deps['environment']["channels"] if
+            chan not in bad_channels ]
+
+        self.extended_data = None
+
         #currently only support these platforms
         self.platforms = ['linux-64', 'noarch']
         self.manifest = None
         self.all_repo_data = None
-        
         self.channel_root = pathlib.Path(channel_root)
         self.channel_name = pathlib.PurePath(channel_name).name
         self.local_channel = self.channel_root / self.channel_name
@@ -74,6 +81,65 @@ class CondaChannel:
             )
         self.manifest = {'resources': vendor_manifest_list}
         return self.manifest
+
+# typical FETCH entry
+# {
+#         "arch": "x86_64",
+#         "build": "h06a4308_1",
+#         "build_number": 1,
+#         "channel": "https://conda.anaconda.org/main/linux-64",
+#         "constrains": [],
+#         "depends": [],
+#         "fn": "ca-certificates-2021.7.5-h06a4308_1.tar.bz2",
+#         "license": "MPL 2.0",
+#         "md5": "a5b14ae6530b92eb40e59709e9bd7c8a",
+#         "name": "ca-certificates",
+#         "platform": "linux",
+#         "sha256": "74ebcc5864f7e83ec533b35361d54ee3b1480043b9a80a746b51963ca12c2266",
+#         "size": 121771,
+#         "subdir": "linux-64",
+#         "timestamp": 1625555175911,
+#         "url": "https://conda.anaconda.org/main/linux-64/ca-certificates-2021.7.5-h06a4308_1.tar.bz2",
+#         "version": "2021.7.5"
+#       },
+
+
+
+    def get_extended_data(self):
+        if self.extended_dta:
+            return self.extended_data 
+
+        fetch_data =  self.solve_environment()
+        extended_data = {}
+        
+        for chan in self.channels:
+            extended_data[chan] = {
+                'linux-64': 
+                {
+                    'repodata_url': [], 
+                    'entries': []
+                }, 
+                'noarch': 
+                {
+                    'repodata_url': [],
+                    'entries': []
+                }
+            }
+
+        for entry in fetch_data:
+            (channel, subdir) = entry['channel'].split('/')[-2:]
+            extended_data[channel][subdir]['repodata_url'].append(entry['channel'] + '/repodata.json')
+            extended_data[channel][subdir]['entries'].append(entry)
+       
+        #remove dups
+        for chan in self.channels:
+            for subdir in ['linux-64', 'noarch']:
+                extended_data[chan][subdir]['repodata_url'] = list(set(extended_data[chan][subdir]['repodata_url']))
+                            
+        self.extended_data = extended_data
+        return self.extended_data
+
+
 
     def create_manifest(self, *, manifest_filename=None):
         manifest = self.get_manifest()
@@ -119,50 +185,67 @@ class CondaChannel:
         
         return local_yml
 
+# typical repodata entry
+# pyyaml-5.4.1-py39h27cfd23_1.tar.bz2": {
+#    "build": "py39h27cfd23_1",
+#    "build_number": 1,
+#    "constrains": [],
+#    "depends": [
+#     "libgcc-ng >=7.3.0",
+#     "python >=3.9,<3.10.0a0",
+#     "yaml >=0.2.5,<0.3.0a0"
+#    ],
+#    "license": "MIT",
+#    "license_family": "MIT",
+#    "md5": "aab0fc073e49da57e556df3019e514d5",
+#    "name": "pyyaml",
+#    "platform": "linux",
+#    "sha256": "4d89212418ecb3cb74ca4453dafe7a40f3be5a551da7b9ed5af303a9edb3e6d5",
+#    "size": 184830,
+#    "subdir": "linux-64",
+#    "timestamp": 1611258452686,
+#    "version": "5.4.1"
+#   },
 
-    #TODO: packages vs packages.conda    
-    @staticmethod 
-    def _package_type(filename):
-        if filename.endswith('.conda'):
-            return 'packages.conda'
-        else:
-            return 'packages'
+    def fetch_and_filter(self, subdir, extended_repo_data):
+         repodata = {
+             "info" : {"subdir" : subdir},
+             "packages": {},
+             "packages.conda": {}
+            }
+
+        if not extended_repo_data['repodata_url']:
+            return repodata
+
+        valid_names = [ entry['fn'] for entry in extended_repo_data['entries'] ]
+
+        repo_data_url = extended_repo_data['repodata_url'][0]
+
+        live_repo_data_json = improved_download(repodata_url).json()
+        for name, entry in live_repo_data_json['packages'].items():
+            if name in valid_names:
+                repodata['packages'][name] = entry
+
+        for name, entry in live_repo_data_json['packages.conda'].items():
+            if name in valid_names:
+                repodata['packages.conda'][name] = entry
+       
+        return repodata
 
     def get_all_repo_data(self):
         if self.all_repo_data:
             return self.all_repo_data
 
-        solution_fetch = self.solve_environment()
-
-        #Houses the repodata for both noarch & linux-64, a key for each
-        self.all_repo_data = {
-            "linux-64" : {
-                "info" : {"subdir" : "linux-64"},
-                "packages":{},
-                "packages.conda" : {}
-                }, 
-            "noarch" : {
-                "info" : {"subdir": "noarch"},
-                "packages":{},
-                "packages.conda" : {}
-                }                     
-        }
-  
-        exclude_keys = ["fn", "arch", "url", "channel"]
-        for fetch in solution_fetch:
-            fetch_keys = fetch.keys()
-            
-            new_entry = {}
-            subdir = fetch["subdir"]
-            name = fetch["fn"]
-            
-            for key in fetch_keys :
-                if key not in exclude_keys:
-                    new_entry[key] = fetch[key]
-                
-            package_type = self._package_type(name)
-            self.all_repo_data[subdir][package_type][name] = new_entry
-            
+        extended_data = self.get_all_repo_data()
+        all_repo_data = {}
+        for chan in self.channels:
+            all_repo_data[chan] = {
+                "linux-64" : 
+                    self.fetch_and_filter('linux-64', extended_data[chan]['linux-64']), 
+                "noarch" : 
+                    self.fetch_and_filter('noarch', extended_data[chan]['noarch'])
+                }
+        self.all_repo_data = all_repo_data                
         return self.all_repo_data
    
     def get_arch_repo_data(self, repo_type):

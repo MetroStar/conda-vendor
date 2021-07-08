@@ -701,6 +701,14 @@ def test_write_repo_data( conda_channel_fixture, tmp_path):
         result_noarch =  json.loads(f.read())
     TestCase().assertDictEqual(expected_noarch, result_noarch)
 
+@patch("conda_vendor.core.CondaChannel.solve_environment")
+def test_make_lists(mock, minimal_conda_forge_env, conda_channel_fixture, fixture_conda_lock_solve_response):
+    mock.return_value = fixture_conda_lock_solve_response
+    conda_channel_fixture.make_lists()
+    
+
+    
+
 
     
     

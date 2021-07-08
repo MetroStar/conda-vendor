@@ -16,7 +16,6 @@ from tests.repodata_fixtures import (
 def conda_channel_fixture(tmp_path,minimal_conda_forge_env, scope="module"):
     return CondaChannel(minimal_conda_forge_env, channel_root=tmp_path )
 
-
 @pytest.fixture(scope="function")
 def minimal_environment(tmpdir_factory):
     content = """name: minimal_env
