@@ -28,7 +28,8 @@ class CondaChannel:
 
         channel_root=pathlib.Path("./"),
     ):
-        parse_return = parse_environment_file(environment_yml, 'linux-64')
+        self.platform  = 'linux-64'
+        parse_return = parse_environment_file(environment_yml, self.platform)
         self.env_deps = {
                 'specs': parse_return.specs,
                 'channels': parse_return.channels
@@ -36,7 +37,8 @@ class CondaChannel:
         with open(environment_yml) as f:
             self.env_deps['environment'] = yaml.load(f, Loader=yaml.SafeLoader)
 
-        self.platforms = ['linux-64', 'noarch']
+
+        self.valid_platforms = [self.platform, 'noarch']
 
         bad_channels = ['nodefaults']
         self.channels = [
@@ -46,7 +48,6 @@ class CondaChannel:
         self.manifest = None
         self.extended_data = None
         self.all_repo_data = None
-
         self.channel_root = pathlib.Path(channel_root)
 
     def solve_environment(self):
@@ -55,7 +56,7 @@ class CondaChannel:
                 "conda",
                 self.env_deps['channels'],
                 specs=self.env_deps['specs'],
-                platform='linux-64'
+                platform=self.platform
             )
             self.env_deps['solution'] = solution
 
@@ -91,7 +92,7 @@ class CondaChannel:
 
         for chan in self.channels:
             extended_data[chan] = {
-                'linux-64':
+                self.platform :
                 {
                     'repodata_url': [],
                     'entries': []
@@ -110,7 +111,7 @@ class CondaChannel:
 
         #remove dups
         for chan in self.channels:
-            for subdir in ['linux-64', 'noarch']:
+            for subdir in self.valid_platforms:
                 extended_data[chan][subdir]['repodata_url'] = list(set(extended_data[chan][subdir]['repodata_url']))
 
         self.extended_data = extended_data
@@ -239,8 +240,8 @@ class CondaChannel:
         all_repo_data = {}
         for chan in self.channels:
             all_repo_data[chan] = {
-                "linux-64" :
-                    self.fetch_and_filter('linux-64', extended_data[chan]['linux-64']),
+                self.platform :
+                    self.fetch_and_filter(self.platform, extended_data[chan][self.platform]),
                 "noarch" :
                     self.fetch_and_filter('noarch', extended_data[chan]['noarch'])
                 }

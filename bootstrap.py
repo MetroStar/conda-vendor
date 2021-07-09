@@ -40,7 +40,7 @@ def main():
     ch = CondaChannel(environment_yml)
     print(f'ch: {ch}')
     print(f'channels: {ch.channels}')
-    print(f'platforms: {ch.platforms}')
+    print(f'platforms: {ch.valid_platforms}')
     print()
 
     print('solving environment')
