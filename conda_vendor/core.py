@@ -11,6 +11,7 @@ from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import struct
 
 def improved_download(url):
     session = requests.Session()
@@ -20,6 +21,23 @@ def improved_download(url):
     session.mount('https://', adapter)
     return session.get(url)
 
+def get_conda_platform():
+    #dict from 
+    #https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
+
+    _platform_map = {
+    'linux2': 'linux',
+    'linux': 'linux',
+    'darwin': 'osx',
+    'win32': 'win',
+    'zos': 'zos',
+    }
+
+    bits= struct.calcsize("P") * 8
+    platform = f"{_platform_map[sys.platform]}-{bits}"
+    return platform
+
+
 class CondaChannel:
     def __init__(
         self,
@@ -28,7 +46,7 @@ class CondaChannel:
 
         channel_root=pathlib.Path("./"),
     ):
-        self.platform  = 'linux-64'
+        self.platform  = get_conda_platform()
         parse_return = parse_environment_file(environment_yml, self.platform)
         self.env_deps = {
                 'specs': parse_return.specs,
