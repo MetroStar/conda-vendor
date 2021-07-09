@@ -27,7 +27,6 @@ class CondaChannel:
         *,
 
         channel_root=pathlib.Path("./"),
-        channel_name='local_channel'
     ):
         parse_return = parse_environment_file(environment_yml, 'linux-64')
         self.env_deps = {
@@ -49,10 +48,6 @@ class CondaChannel:
         self.all_repo_data = None
 
         self.channel_root = pathlib.Path(channel_root)
-
-        #TODO: obsolete this
-        self.channel_name = pathlib.PurePath(channel_name).name
-        self.local_channel = self.channel_root / self.channel_name
 
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
@@ -308,6 +303,8 @@ class CondaChannel:
             for subdir, rest in platform.items():
                 self.download_arch_binaries(chan, subdir, rest['entries'])
 
+
+## API for CLI and testing ##
 def get_manifest(conda_channel: CondaChannel):
     return conda_channel.get_manifest()
 
