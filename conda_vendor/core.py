@@ -21,7 +21,7 @@ def improved_download(url):
     session.mount('https://', adapter)
     return session.get(url)
 
-def get_conda_platform():
+def get_conda_platform(platform = sys.platform):
     #dict from 
     #https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 
@@ -34,8 +34,8 @@ def get_conda_platform():
     }
 
     bits= struct.calcsize("P") * 8
-    platform = f"{_platform_map[sys.platform]}-{bits}"
-    return platform
+    return f"{_platform_map[platform]}-{bits}"
+     
 
 
 class CondaChannel:
