@@ -21,9 +21,7 @@ from conda_vendor.core import(
 )
 
 
-
 from .conftest import mock_response
-
 @patch("requests.Session.get")
 def test_improved_download(mock) -> None:
     mock.return_value = Mock(Response)
@@ -34,7 +32,6 @@ def test_improved_download(mock) -> None:
     assert mock.call_count == 1 
     assert  isinstance(result, Response)
 
-
 @patch("struct.calcsize")
 def test_get_conda_platform(mock_struct)-> None :
     test_platform='linux'
@@ -43,12 +40,6 @@ def test_get_conda_platform(mock_struct)-> None :
     result = get_conda_platform(test_platform)
     assert expected == result
     assert mock_struct.call_count == 1 
-
-
-
-
-
-
 
 def test_init(minimal_environment):
     conda_channel = CondaChannel(minimal_environment)
@@ -108,10 +99,16 @@ dependencies:
 
 
 # assume conda_lock.solve_specs_for_arch works
-@patch('conda_lock.conda_lock.solve_specs_for_arch')
+@patch('conda_vendor.core.lock_wrapper.solve')
 def test_solve_environment(mock_solution, conda_channel_fixture):
-    solution_data = {
-        
+    mock_data = {"actions": {
+            "FETCH" :[{"DUMMY_KEY": "DUMMY_VAL"}],
+            "LINK" : []
+            
+        }
     }
-
-    assert 1==0
+    mock_solution.return_value = mock_data
+    expected = mock_data['actions']['FETCH']
+    result = conda_channel_fixture.solve_environment()
+    print(result)
+    TestCase().assertDictEqual(result[0], expected[0])

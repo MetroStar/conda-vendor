@@ -35,7 +35,17 @@ def get_conda_platform(platform = sys.platform):
 
     bits= struct.calcsize("P") * 8
     return f"{_platform_map[platform]}-{bits}"
-     
+
+#TODO: I couldnt get conda_lock.solve_specs_for_arch to patch easily 
+class lock_wrapper():
+    def _init_():
+        return 
+    @staticmethod
+    def parse(*args):
+        return parse_environment_file(*args)
+    @staticmethod
+    def solve(*args,**kwargs):
+        return solve_specs_for_arch(*args,**kwargs)
 
 
 class CondaChannel:
@@ -47,7 +57,7 @@ class CondaChannel:
         channel_root=pathlib.Path("./"),
     ):
         self.platform  = get_conda_platform()
-        parse_return = parse_environment_file(environment_yml, self.platform)
+        parse_return = lock_wrapper.parse(environment_yml, self.platform)
         self.env_deps = {
                 'specs': parse_return.specs,
                 'channels': parse_return.channels
@@ -70,7 +80,7 @@ class CondaChannel:
 
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
-            solution = solve_specs_for_arch(
+            solution = lock_wrapper.solve(
                 "conda",
                 self.env_deps['channels'],
                 specs=self.env_deps['specs'],

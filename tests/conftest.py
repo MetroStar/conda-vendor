@@ -3,6 +3,7 @@ import sys
 import os
 from unittest.mock import Mock, patch
 sys.path.append(os.path.dirname(__file__))
+from conda_vendor.core import CondaChannel
 
 print (sys.path)
 
@@ -35,6 +36,11 @@ dependencies:
 @pytest.fixture
 def minimal_conda_lock_solution():
     return {}
+
+
+@pytest.fixture
+def conda_channel_fixture(tmp_path,minimal_conda_forge_environment, scope="module"):
+    return CondaChannel(minimal_conda_forge_environment, channel_root=tmp_path )
 
 
 from unittest.mock import Mock
