@@ -13,6 +13,7 @@ import yaml
 import  requests 
 from requests import Response
 import struct
+from unittest.mock import _Call
 
 from conda_vendor.core import(
     improved_download,
@@ -48,12 +49,8 @@ def test_init(minimal_environment):
     expected_platforms = [conda_channel.platform, 'noarch']
     for platform in expected_platforms:
         assert platform in conda_channel.valid_platforms
-
-    #make sure specs has python in it
     assert 'python=3.9.5' in conda_channel.env_deps['specs']
-    
-    #make sure we have 'defaults' channel
-    assert 'defaults' in conda_channel.channels
+    assert 'main' in conda_channel.channels
 
 
 def test_init_conda_forge(minimal_conda_forge_environment):
@@ -70,7 +67,7 @@ def test_init_conda_forge(minimal_conda_forge_environment):
         assert pkg in conda_channel.env_deps['specs']
     
     #make sure we have expected channels 
-    expected_channels = ['defaults', 'conda-forge']
+    expected_channels = ['main', 'conda-forge']
     for chan in expected_channels:
         assert chan in conda_channel.channels
 
@@ -99,15 +96,321 @@ dependencies:
 
 # assume conda_lock.solve_specs_for_arch works
 @patch('conda_vendor.core._lock_wrapper.solve')
-def test_solve_environment(mock_solution, conda_channel_fixture):
+def test_CondaChannel_solve_environment(mock, conda_channel_fixture):
     mock_data = {"actions": {
             "FETCH" :[{"DUMMY_KEY": "DUMMY_VAL"}],
             "LINK" : []
         }
     }
-    mock_solution.return_value = mock_data
+    mock.return_value = mock_data
     expected = mock_data['actions']['FETCH']
     result = conda_channel_fixture.solve_environment()
-    assert mock_solution.call_count == 1 
+    assert mock.call_count == 1 
+    print(type(mock.call_args))
+    mock.assert_called_with('conda', ['main', 'conda-forge'], specs=['python=3.9.5', 'conda-mirror'], platform='osx-64')
     TestCase().assertDictEqual(result[0], expected[0])
 
+
+
+def test_CondaChannel_get_extended_data(conda_channel_fixture):
+    platform = conda_channel_fixture.platform
+    test_env_deps_solution = {"actions": {
+        "FETCH" :[
+        { "channel": f"https://conda.anaconda.org/main/{platform}"},
+        { "channel": "https://conda.anaconda.org/main/noarch"},
+        { "channel": "https://conda.anaconda.org/conda-forge/noarch"},
+        { "channel": f"https://conda.anaconda.org/main/{platform}" }
+
+        ],
+        "LINK" : []
+        }
+    }
+
+    expected = {
+        'main': {
+            f'{platform}': {
+                'repodata_url': [
+                    f'https://conda.anaconda.org/main/{platform}/repodata.json'
+                ], 
+             'entries': [
+                    {'channel': f'https://conda.anaconda.org/main/{platform}'}, 
+                    {'channel': f'https://conda.anaconda.org/main/{platform}'}
+                ]
+            },
+            'noarch': {
+                'repodata_url': [
+                    'https://conda.anaconda.org/main/noarch/repodata.json'
+                ], 
+                'entries': [
+                    {'channel': 'https://conda.anaconda.org/main/noarch'}
+                ]
+            }
+        }, 
+        'conda-forge': {
+            'osx-64': {
+                'repodata_url': [], 
+                'entries': []
+            }, 
+            'noarch': {
+                'repodata_url': [
+                    'https://conda.anaconda.org/conda-forge/noarch/repodata.json'
+                ], 
+            'entries': [
+                {'channel': 'https://conda.anaconda.org/conda-forge/noarch'}
+                ]
+            }
+        }
+    }
+
+    conda_channel_fixture.env_deps['solution'] = test_env_deps_solution
+    result = conda_channel_fixture.get_extended_data()
+    TestCase().assertDictEqual(result, expected)
+
+
+
+def test_CondaChannel_get_manifest(conda_channel_fixture):
+    platform = conda_channel_fixture.platform
+
+    test_env_deps_solution = {"actions": {
+        "FETCH" :[
+        { 
+            "channel": f"http://fake.com/main/{platform}",
+            "url": f"https://fake.com/main/{platform}/name1",
+            "fn" : "name1",
+            "sha256" : "sha1"
+        },
+        { 
+            "channel": f"http://fake.com/main/noarch",
+            "url": f"https://fake.com/main/noarch/name2",
+             "fn" : "name2",
+            "sha256" : "sha2"
+            
+        
+        },
+        {       
+            "channel": f"http://fake.com/conda-forge/{platform}",
+            "url": f"https://fake.com/conda-forge/{platform}/name3",
+            "fn" : "name3",
+            "sha256" : "sha3"
+        },
+        {
+            "channel": f"http://fake.com/main/{platform}",
+            "url": f"https://fake.com/main/{platform}/name4",
+            "fn" : "name4",
+            "sha256" : "sha4"
+        }
+
+        ],
+        "LINK" : []
+        }
+    }
+    conda_channel_fixture.env_deps['solution'] = test_env_deps_solution
+
+    expected_vendor_manifest = {
+        "resources": [
+            {
+                "url": f"https://fake.com/main/{platform}/name1",
+                "name" : "name1",
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha1",
+                },
+            },
+               {
+                "url": f"https://fake.com/main/noarch/name2",
+                "name" : "name2",
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha2",
+                },
+            },
+               {
+                "url": f"https://fake.com/conda-forge/{platform}/name3",
+                "name" : "name3",
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha3",
+                },
+            },
+               {
+                "url": f"https://fake.com/main/{platform}/name4",
+                "name" : "name4",
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha4",
+                },
+            },
+        ]
+    }
+
+    result = conda_channel_fixture.get_manifest()
+    expected= expected_vendor_manifest
+    TestCase().assertDictEqual(result, expected)
+
+
+@patch("conda_vendor.core.CondaChannel.get_manifest")
+def test_CondaChannel_create_manifest(mock, conda_channel_fixture):
+    platform = conda_channel_fixture.platform
+    expected_path = conda_channel_fixture.channel_root / "vendor_manifest.yaml"
+    expected = {
+        "resources": [
+            {
+                "url": f"https://fake.com/main/{platform}/name1",
+                "name" : "name1",
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha1",
+                }
+            }
+        ]
+    }
+    mock.return_value = expected
+    conda_channel_fixture.create_manifest()
+    with open(expected_path , "r") as f:
+        result =yaml.load(f, Loader=SafeLoader)
+    TestCase().assertDictEqual(result, expected)
+    mock.assert_called_with()
+    assert mock.call_count ==1 
+
+
+def test_CondaChannel_get_local_environment_yaml(conda_channel_fixture):
+    expected_path_main =  f"file://{conda_channel_fixture.channel_root}/local_main"
+    expected_path_conda_forge =  f"file://{conda_channel_fixture.channel_root}/local_conda-forge"
+
+    expected = {  
+       "name": "local_minimal_conda_forge_env",
+       "channels" : [expected_path_main, expected_path_conda_forge, "nodefaults"],
+       "dependencies" : ["python=3.9.5","conda-mirror"]
+    }
+
+    result = conda_channel_fixture.get_local_environment_yaml()
+    TestCase().assertDictEqual(result, expected)
+   
+
+
+@patch('conda_vendor.core.CondaChannel.get_local_environment_yaml')
+def test_CondaChannel_create_local_environment_yaml(mock, conda_channel_fixture):
+    expected = {  
+    "name": "local_minimal_conda_forge_env",
+    "channels" : [ "dummy_channel"],
+    "dependencies" : ["python=3.9.5","conda-mirror"]
+    }
+
+    mock.return_value = expected
+    conda_channel_fixture.create_local_environment_yaml()
+    expected_file = conda_channel_fixture.channel_root / 'local_yaml.yaml'
+    with open( expected_file, 'r' ) as f:
+        result = yaml.load(f,Loader=SafeLoader)
+    TestCase().assertDictEqual(result, expected)
+    mock.assert_called_with(local_environment_name=None)
+    assert mock.call_count ==1 
+
+
+def test_CondaChannel_fetch_and_filter():
+    pass
+
+def test_CondaChannel_get_all_repo_data():
+    pass
+
+def test_CondaChannel_local_channel_name(conda_channel_fixture):
+    expected = "local_TEST_CHANNEL_NAME"
+    result = conda_channel_fixture.local_channel_name(chan = "TEST_CHANNEL_NAME")
+    assert expected == result
+
+@patch("conda_vendor.core.CondaChannel.local_channel_name")
+def test_CondaChannel_local_dir(mock, conda_channel_fixture):
+    mock_local_dir_name = "local_TEST_CHANNEL_NAME"
+    mock.return_value = mock_local_dir_name
+    test_channel_name = "TEST_CHANNEL_NAME"
+    test_subdir = "dummy-64"
+    expected = conda_channel_fixture.channel_root / mock_local_dir_name / test_subdir
+    result = conda_channel_fixture.local_dir(chan = test_channel_name, subdir = test_subdir)
+    assert result == expected
+    mock.assert_called_with(test_channel_name)
+
+@patch("conda_vendor.core.CondaChannel.local_dir")
+def test_CondaChannel_make_local_dir(mock, conda_channel_fixture):
+    mock_local_dir_name = "local_TEST_CHANNEL_NAME"
+    test_local_dir_subdir = "dummy-64"
+    expected_path = conda_channel_fixture.channel_root / mock_local_dir_name / test_local_dir_subdir
+    test_channel_name = "TEST_CHANNEL_NAME"
+    mock.return_value = expected_path
+    result = conda_channel_fixture.make_local_dir(chan=test_channel_name , subdir=test_local_dir_subdir)
+    assert result == expected_path
+    assert expected_path.exists()
+    mock.assert_called_with("TEST_CHANNEL_NAME", "dummy-64")
+
+    
+
+def test_CondaChannel_write_arch_repo_data():
+    pass
+
+
+def test_CondaChannel_write_repo_data():
+    pass
+
+def test_CondaChannel__calc_sha256():
+    test_data= b"DUMMY"
+    expected = hashlib.sha256(b"DUMMY").hexdigest()
+    result = CondaChannel._calc_sha256(test_data)
+    assert expected == result 
+
+@patch("conda_vendor.core.improved_download")
+def test_CondaChannel_download_and_validate(mock, tmp_path):
+    expected_raw = b"DUMMY_DATA"
+    expected_path = tmp_path / "dummy.data"
+    expected_hash = hashlib.sha256(expected_raw).hexdigest()
+    expected_url  = "https://should_have_been_a_doctor.com"
+    mock.return_value = mock_response(content=expected_raw)
+    CondaChannel.download_and_validate(
+        out=expected_path, 
+        url=expected_url,
+        sha256 =expected_hash 
+        )
+    with open(expected_path, "rb") as f :
+        assert f.read() == expected_raw
+    mock.assert_called_with(expected_url)
+    assert mock.call_count == 1
+
+@patch("conda_vendor.core.CondaChannel.make_local_dir")
+@patch("conda_vendor.core.CondaChannel.download_and_validate")
+def test_CondaChannel_download_arch_binaries(mock_download_and_validate,mock_make_local_dir, conda_channel_fixture , tmp_path ):
+    platform = conda_channel_fixture.platform
+    test_channel = "dummy"
+    test_subdir = "dummy-64"
+    test_entries = [{ 
+            "channel": f"http://fake.com/main/{platform}",
+            "url": f"https://fake.com/main/{platform}/name1",
+            "fn" : "name1",
+            "sha256" : "sha1"
+        }] 
+    mock_path = tmp_path / test_channel / test_subdir
+    expected_name = "name1"
+    expected_destination = mock_path/ expected_name
+    expected_download_and_validate_calls = [expected_destination,'https://fake.com/main/osx-64/name1', 'sha1']
+    mock_make_local_dir.return_value = mock_path
+    conda_channel_fixture.download_arch_binaries(chan=test_channel, subdir =test_subdir , entries= test_entries)
+    mock_download_and_validate.call_count == 1 
+    mock_make_local_dir.call_count == 1 
+    mock_make_local_dir.assert_called_with('dummy', 'dummy-64')
+    mock_download_and_validate.assert_called_with( *expected_download_and_validate_calls  )
+    
+
+
+
+def test_CondaChannel_download_binaries():
+    pass
+
+    
+
+
+
+
+
+
+
+
+
+
+    
+    

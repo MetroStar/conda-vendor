@@ -2,16 +2,18 @@ import pytest
 import sys
 import os
 from unittest.mock import Mock, patch
+
 sys.path.append(os.path.dirname(__file__))
 from conda_vendor.core import CondaChannel
 
-print (sys.path)
+print(sys.path)
 
-@pytest.fixture(scope='function')
+
+@pytest.fixture(scope="function")
 def minimal_environment(tmpdir_factory):
     content = """name: minimal_env
 channels:
-- defaults
+- main
 dependencies:
 - python=3.9.5"""
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
@@ -19,7 +21,7 @@ dependencies:
     return fn
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def minimal_conda_forge_environment(tmpdir_factory):
     content = """name: minimal_conda_forge_env
 channels:
@@ -33,22 +35,23 @@ dependencies:
     fn.write(content)
     return fn
 
+
 @pytest.fixture
 def minimal_conda_lock_solution():
     return {}
 
 
 @pytest.fixture
-def conda_channel_fixture(tmp_path,minimal_conda_forge_environment, scope="module"):
-    return CondaChannel(minimal_conda_forge_environment, channel_root=tmp_path )
+def conda_channel_fixture(tmp_path, minimal_conda_forge_environment, scope="module"):
+    return CondaChannel(minimal_conda_forge_environment, channel_root=tmp_path)
 
 
 from unittest.mock import Mock
+
+
 def mock_response(
-        status=200,
-        content= b"CONTENT",
-        json_data=None,
-        raise_for_status=None):
+    status=200, content=b"CONTENT", json_data=None, raise_for_status=None
+):
     """
     since we typically test a bunch of different
     requests calls for a service, we are going to do
@@ -65,7 +68,5 @@ def mock_response(
     mock_resp.content = content
     # add json data if provided
     if json_data:
-        mock_resp.json = Mock(
-            return_value=json_data
-        )
+        mock_resp.json = Mock(return_value=json_data)
     return mock_resp
