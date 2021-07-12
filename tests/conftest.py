@@ -23,7 +23,7 @@ dependencies:
 def minimal_conda_forge_environment(tmpdir_factory):
     content = """name: minimal_conda_forge_env
 channels:
-- defaults
+- main
 - conda-forge
 dependencies:
 - python=3.9.5

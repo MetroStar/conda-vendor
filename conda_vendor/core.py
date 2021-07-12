@@ -13,6 +13,20 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import struct
 
+
+#TODO: This class exists solely to allow us to get the
+#      patching to work in the tests
+class _lock_wrapper():
+    def _init_():
+        return 
+    @staticmethod
+    def parse(*args):
+        return parse_environment_file(*args)
+    @staticmethod
+    def solve(*args,**kwargs):
+        return solve_specs_for_arch(*args,**kwargs)
+
+#see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def improved_download(url):
     session = requests.Session()
     retry = Retry(connect=5, backoff_factor=0.5)
@@ -21,10 +35,8 @@ def improved_download(url):
     session.mount('https://', adapter)
     return session.get(url)
 
+#see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(platform = sys.platform):
-    #dict from 
-    #https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
-
     _platform_map = {
     'linux2': 'linux',
     'linux': 'linux',
@@ -36,18 +48,6 @@ def get_conda_platform(platform = sys.platform):
     bits= struct.calcsize("P") * 8
     return f"{_platform_map[platform]}-{bits}"
 
-#TODO: I couldnt get conda_lock.solve_specs_for_arch to patch easily 
-class lock_wrapper():
-    def _init_():
-        return 
-    @staticmethod
-    def parse(*args):
-        return parse_environment_file(*args)
-    @staticmethod
-    def solve(*args,**kwargs):
-        return solve_specs_for_arch(*args,**kwargs)
-
-
 class CondaChannel:
     def __init__(
         self,
@@ -57,7 +57,7 @@ class CondaChannel:
         channel_root=pathlib.Path("./"),
     ):
         self.platform  = get_conda_platform()
-        parse_return = lock_wrapper.parse(environment_yml, self.platform)
+        parse_return = _lock_wrapper.parse(environment_yml, self.platform)
         self.env_deps = {
                 'specs': parse_return.specs,
                 'channels': parse_return.channels
@@ -73,6 +73,10 @@ class CondaChannel:
             chan for chan in self.env_deps['environment']["channels"] if
             chan not in bad_channels ]
 
+        #TODO? add default , needs test 
+        if 'defaults' in self.channels:
+            raise RuntimeError('default channels are not supported.')
+
         self.manifest = None
         self.extended_data = None
         self.all_repo_data = None
@@ -80,7 +84,7 @@ class CondaChannel:
 
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
-            solution = lock_wrapper.solve(
+            solution = _lock_wrapper.solve(
                 "conda",
                 self.env_deps['channels'],
                 specs=self.env_deps['specs'],

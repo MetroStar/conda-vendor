@@ -97,18 +97,17 @@ dependencies:
     assert 'nodefaults' not in conda_channel.channels
 
 
-
 # assume conda_lock.solve_specs_for_arch works
-@patch('conda_vendor.core.lock_wrapper.solve')
+@patch('conda_vendor.core._lock_wrapper.solve')
 def test_solve_environment(mock_solution, conda_channel_fixture):
     mock_data = {"actions": {
             "FETCH" :[{"DUMMY_KEY": "DUMMY_VAL"}],
             "LINK" : []
-            
         }
     }
     mock_solution.return_value = mock_data
     expected = mock_data['actions']['FETCH']
     result = conda_channel_fixture.solve_environment()
-    print(result)
+    assert mock_solution.call_count == 1 
     TestCase().assertDictEqual(result[0], expected[0])
+
