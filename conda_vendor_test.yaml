@@ -1,0 +1,19 @@
+name: conda_vendor_test_env
+channels:
+  - main
+  - conda-forge
+dependencies:
+  - python=3.9.5
+  - conda-lock
+  - pip
+  - pytest 
+  - pip:
+    - wheel
+    - setuptools
+   
+
+
+
+
+
+
