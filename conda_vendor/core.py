@@ -18,7 +18,7 @@ import struct
 #      patching to work in the tests
 class _lock_wrapper():
     def _init_():
-        return 
+        return
     @staticmethod
     def parse(*args):
         return parse_environment_file(*args)
@@ -73,7 +73,7 @@ class CondaChannel:
             chan for chan in self.env_deps['environment']["channels"] if
             chan not in bad_channels ]
 
-        #TODO? add default , needs test 
+        #TODO? add default , needs test
         if 'defaults' in self.channels:
             raise RuntimeError('default channels are not supported.')
 
@@ -160,12 +160,11 @@ class CondaChannel:
             name = conda_lock_fetch_info['fn']
             validation_value = conda_lock_fetch_info['sha256']
             validation = {'type': 'sha256', 'value': validation_value}
-            vendor_manifest_list.append(
-                    {
-                        'url': url,
-                        'name': name,
-                        'validation': validation
-                    }
+            vendor_manifest_list.append({
+                'url': url,
+                'name': name,
+                'validation': validation
+                }
             )
         self.manifest = {'resources': vendor_manifest_list}
         return self.manifest
@@ -296,6 +295,7 @@ class CondaChannel:
     def write_arch_repo_data(self, chan, subdir, repo_data):
         dest_dir = self.make_local_dir(chan, subdir)
         dest_file = dest_dir / 'repodata.json'
+        print(f'REAL writing data to: {dest_file}')
         with dest_file.open('w') as f:
             json.dump(repo_data, f)
 
