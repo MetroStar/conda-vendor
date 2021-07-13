@@ -1,12 +1,10 @@
+
+import os
 import pytest
 import sys
-import os
 from unittest.mock import Mock, patch
-
 sys.path.append(os.path.dirname(__file__))
 from conda_vendor.core import CondaChannel
-
-print(sys.path)
 
 
 @pytest.fixture(scope="function")
@@ -29,7 +27,7 @@ channels:
 - conda-forge
 dependencies:
 - python=3.9.5
-- conda-mirror
+- conda-mirror=0.8.2
 """
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
     fn.write(content)
@@ -70,3 +68,6 @@ def mock_response(
     if json_data:
         mock_resp.json = Mock(return_value=json_data)
     return mock_resp
+
+
+

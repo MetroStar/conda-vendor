@@ -14,6 +14,7 @@ from requests.packages.urllib3.util.retry import Retry
 import struct
 
 
+
 #TODO: This class exists solely to allow us to get the
 #      patching to work in the tests
 class _lock_wrapper():
@@ -26,6 +27,7 @@ class _lock_wrapper():
     def solve(*args,**kwargs):
         return solve_specs_for_arch(*args,**kwargs)
 
+
 #see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def improved_download(url):
     session = requests.Session()
@@ -34,6 +36,7 @@ def improved_download(url):
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session.get(url)
+
 
 #see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(platform = sys.platform):
@@ -47,6 +50,7 @@ def get_conda_platform(platform = sys.platform):
 
     bits= struct.calcsize("P") * 8
     return f"{_platform_map[platform]}-{bits}"
+
 
 class CondaChannel:
     def __init__(
@@ -82,6 +86,7 @@ class CondaChannel:
         self.all_repo_data = None
         self.channel_root = pathlib.Path(channel_root)
 
+
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
             solution = _lock_wrapper.solve(
@@ -93,6 +98,7 @@ class CondaChannel:
             self.env_deps['solution'] = solution
 
         return self.env_deps['solution']['actions']['FETCH']
+
 
 # typical FETCH entry
 # {
@@ -114,6 +120,7 @@ class CondaChannel:
 #         "url": "https://conda.anaconda.org/main/linux-64/ca-certificates-2021.7.5-h06a4308_1.tar.bz2",
 #         "version": "2021.7.5"
 #       },
+
 
     def get_extended_data(self):
         if self.extended_data:
@@ -149,6 +156,7 @@ class CondaChannel:
         self.extended_data = extended_data
         return self.extended_data
 
+
     def get_manifest(self):
         if self.manifest:
             return self.manifest
@@ -183,6 +191,7 @@ class CondaChannel:
             yaml.dump(manifest, f, sort_keys=False)
         return manifest
 
+
     def get_local_environment_yaml(self, *, local_environment_name=None):
         local_yml = self.env_deps['environment'].copy()
         if not local_environment_name:
@@ -197,6 +206,7 @@ class CondaChannel:
 
         local_yml["channels"] = channel_paths
         return local_yml
+
 
     def create_local_environment_yaml(self, *,
         local_environment_name=None,
@@ -213,6 +223,7 @@ class CondaChannel:
         with open(outpath_file_name, "w") as f:
             yaml.safe_dump(local_yml,f , sort_keys=False)
         return local_yml
+
 
 # typical repodata entry
 # pyyaml-5.4.1-py39h27cfd23_1.tar.bz2": {
@@ -235,6 +246,7 @@ class CondaChannel:
 #    "timestamp": 1611258452686,
 #    "version": "5.4.1"
 #   },
+
 
     def fetch_and_filter(self, subdir, extended_repo_data):
         repo_data = {
@@ -263,6 +275,7 @@ class CondaChannel:
 
         return repo_data
 
+
     def get_all_repo_data(self):
         if self.all_repo_data:
             return self.all_repo_data
@@ -279,25 +292,29 @@ class CondaChannel:
         self.all_repo_data = all_repo_data
         return self.all_repo_data
 
+
     #TODO: visit this rule?
     def local_channel_name(self, chan: str):
         return 'local_' + chan
 
+
     def local_dir(self, chan, subdir):
         chan_name = self.local_channel_name(chan)
         return self.channel_root / chan_name / subdir
+
 
     def make_local_dir(self, chan, subdir):
         dest_dir = self.local_dir(chan, subdir)
         dest_dir.mkdir(parents = True, exist_ok = True)
         return dest_dir
 
+
     def write_arch_repo_data(self, chan, subdir, repo_data):
         dest_dir = self.make_local_dir(chan, subdir)
         dest_file = dest_dir / 'repodata.json'
-        print(f'REAL writing data to: {dest_file}')
         with dest_file.open('w') as f:
             json.dump(repo_data, f)
+
 
     def write_repo_data(self):
         all_repo_data = self.get_all_repo_data()
@@ -305,9 +322,11 @@ class CondaChannel:
             for subdir, repo_data in platform.items():
                 self.write_arch_repo_data(chan, subdir, repo_data)
 
+
     @staticmethod
     def _calc_sha256(byte_array):
         return hashlib.sha256(byte_array).hexdigest()
+
 
     @staticmethod
     def download_and_validate(out: pathlib.Path, url, sha256):
@@ -324,11 +343,13 @@ class CondaChannel:
                     "manifest SHA: {sha256}"
                 )
 
+
     def download_arch_binaries(self, chan, subdir, entries):
         dest_dir = self.make_local_dir(chan, subdir)
         for entry in entries:
             self.download_and_validate(dest_dir / entry['fn'],
                 entry['url'], entry['sha256'])
+
 
     def download_binaries(self):
         extended_data = self.get_extended_data()
@@ -337,9 +358,11 @@ class CondaChannel:
                 self.download_arch_binaries(chan, subdir, rest['entries'])
 
 
+
 ## API for CLI and testing ##
 def get_manifest(conda_channel: CondaChannel):
     return conda_channel.get_manifest()
+
 
 def create_manifest(
     conda_channel: CondaChannel,
@@ -348,6 +371,7 @@ def create_manifest(
 ):
     return conda_channel.create_manifest(manifest_filename=manifest_filename)
 
+
 def get_local_environment_yaml(
     conda_channel: CondaChannel,
     *,
@@ -355,6 +379,7 @@ def get_local_environment_yaml(
 ):
     return conda_channel.get_local_environment_yaml(
         local_environment_name=local_environment_name)
+
 
 def create_local_environment_yaml(
     conda_channel: CondaChannel,
@@ -367,6 +392,7 @@ def create_local_environment_yaml(
         local_environment_filename=local_environment_filename
     )
     return local_yaml
+
 
 def create_local_channels(
     conda_channel: CondaChannel,
@@ -384,4 +410,3 @@ def create_local_channels(
         )
     conda_channel.write_repo_data()
     conda_channel.download_binaries()
-

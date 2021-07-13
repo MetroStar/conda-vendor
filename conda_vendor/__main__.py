@@ -193,13 +193,15 @@ def main():
 
     sub_commands = {
             'manifest': CommandManifest(sub_parsers, 'manifest'),
-            'local_yml': CommandLocalYaml(sub_parsers, 'local_yml'),
+            'local_yaml': CommandLocalYaml(sub_parsers, 'local_yaml'),
 #  TODO:    'repo_data': None,
             'local_channels': CommandLocalChannels(sub_parsers, 'local_channels')
             }
 
-    cook_argv_for_default(list(sub_commands.keys()), 'local_channels')
+    if not ('-h' in sys.argv or '--help' in sys.argv) :
+        cook_argv_for_default(list(sub_commands.keys()), 'local_channels')
 
+    print(sys.argv)
     args,rest = parser.parse_known_args()
     environment_yml = check_environment_yaml(args.file)
     if args.subcmd in sub_commands:
