@@ -12,7 +12,6 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import struct
-from  conda_vendor.core import get_manifest, create_manifest
 
 
 
