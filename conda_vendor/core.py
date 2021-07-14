@@ -1,10 +1,8 @@
 import hashlib
 import json
-import logging as logger
-import os
+import logging
 import pathlib
 import requests
-import subprocess
 import sys
 import yaml
 from conda_lock.conda_lock import solve_specs_for_arch
@@ -12,8 +10,7 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import struct
-
-
+logging.basicConfig(level=logging.INFO)
 
 #TODO: This class exists solely to allow us to get the
 #      patching to work in the tests
@@ -85,10 +82,11 @@ class CondaChannel:
         self.extended_data = None
         self.all_repo_data = None
         self.channel_root = pathlib.Path(channel_root)
-
+        logging.info(f"channel_root : {self.channel_root.absolute()}")
 
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
+            logging.info(f"Solving ENV | Channels : {self.env_deps['channels']} | specs : {self.env_deps['specs']} , platform : {self.platform}")
             solution = _lock_wrapper.solve(
                 "conda",
                 self.env_deps['channels'],
@@ -96,30 +94,10 @@ class CondaChannel:
                 platform=self.platform
             )
             self.env_deps['solution'] = solution
-
+        
         return self.env_deps['solution']['actions']['FETCH']
 
 
-# typical FETCH entry
-# {
-#         "arch": "x86_64",
-#         "build": "h06a4308_1",
-#         "build_number": 1,
-#         "channel": "https://conda.anaconda.org/main/linux-64",
-#         "constrains": [],
-#         "depends": [],
-#         "fn": "ca-certificates-2021.7.5-h06a4308_1.tar.bz2",
-#         "license": "MPL 2.0",
-#         "md5": "a5b14ae6530b92eb40e59709e9bd7c8a",
-#         "name": "ca-certificates",
-#         "platform": "linux",
-#         "sha256": "74ebcc5864f7e83ec533b35361d54ee3b1480043b9a80a746b51963ca12c2266",
-#         "size": 121771,
-#         "subdir": "linux-64",
-#         "timestamp": 1625555175911,
-#         "url": "https://conda.anaconda.org/main/linux-64/ca-certificates-2021.7.5-h06a4308_1.tar.bz2",
-#         "version": "2021.7.5"
-#       },
 
 
     def get_extended_data(self):
@@ -186,17 +164,17 @@ class CondaChannel:
 
         cleaned_name = pathlib.PurePath(manifest_filename).name
         outpath_file_name = self.channel_root / cleaned_name
-        logger.info(f"Creating Manifest {outpath_file_name}")
+        logging.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
             yaml.dump(manifest, f, sort_keys=False)
         return manifest
 
 
     def get_local_environment_yaml(self, *, local_environment_name=None):
+        
         local_yml = self.env_deps['environment'].copy()
         if not local_environment_name:
             local_environment_name = f"local_{local_yml['name']}"
-
         local_yml['name'] = local_environment_name
         channel_paths = []
         for chan in self.channels:
@@ -217,38 +195,19 @@ class CondaChannel:
 
         if not local_environment_filename:
             local_environment_filename='local_yaml.yaml'
-
+        
         cleaned_name = pathlib.PurePath(local_environment_filename).name
         outpath_file_name = self.channel_root / cleaned_name
+        logging.info(f"Creating local_env_yaml :  {outpath_file_name.absolute()} ")
         with open(outpath_file_name, "w") as f:
             yaml.safe_dump(local_yml,f , sort_keys=False)
         return local_yml
 
 
-# typical repodata entry
-# pyyaml-5.4.1-py39h27cfd23_1.tar.bz2": {
-#    "build": "py39h27cfd23_1",
-#    "build_number": 1,
-#    "constrains": [],
-#    "depends": [
-#     "libgcc-ng >=7.3.0",
-#     "python >=3.9,<3.10.0a0",
-#     "yaml >=0.2.5,<0.3.0a0"
-#    ],
-#    "license": "MIT",
-#    "license_family": "MIT",
-#    "md5": "aab0fc073e49da57e556df3019e514d5",
-#    "name": "pyyaml",
-#    "platform": "linux",
-#    "sha256": "4d89212418ecb3cb74ca4453dafe7a40f3be5a551da7b9ed5af303a9edb3e6d5",
-#    "size": 184830,
-#    "subdir": "linux-64",
-#    "timestamp": 1611258452686,
-#    "version": "5.4.1"
-#   },
 
 
     def fetch_and_filter(self, subdir, extended_repo_data):
+        
         repo_data = {
                 "info" : {"subdir" : subdir},
                 "packages": {},
@@ -261,8 +220,8 @@ class CondaChannel:
         valid_names = [entry['fn'] for entry in extended_repo_data['entries']]
 
         repo_data_url = extended_repo_data['repodata_url'][0]
+        logging.info(f"fetching repo data from :{repo_data_url} to subdir : {subdir}")
         live_repo_data_json = improved_download(repo_data_url).json()
-
         if live_repo_data_json.get('packages'):
             for name, entry in live_repo_data_json['packages'].items():
                 if name in valid_names:
@@ -306,6 +265,7 @@ class CondaChannel:
     def make_local_dir(self, chan, subdir):
         dest_dir = self.local_dir(chan, subdir)
         dest_dir.mkdir(parents = True, exist_ok = True)
+        logging.info(f"Making directory {dest_dir.absolute()} ")
         return dest_dir
 
 
@@ -330,7 +290,7 @@ class CondaChannel:
 
     @staticmethod
     def download_and_validate(out: pathlib.Path, url, sha256):
-        logger.info(f'downloading {url} to {out}')
+        logging.info(f'downloading {url} to {out}')
         response = improved_download(url)
         url_data = response.content
         with open(out, "wb") as f:
@@ -340,7 +300,7 @@ class CondaChannel:
             if sha256 != calculated_sha:
                 raise RuntimeError(
                     f"SHA256 does not match for {out} calculated SHA: {calculated_sha}, "
-                    "manifest SHA: {sha256}"
+                    f"manifest SHA: {sha256}"
                 )
 
 

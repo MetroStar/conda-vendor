@@ -1,12 +1,6 @@
 import hashlib
 import json
-import os
-import pytest
-import requests
-import struct
-import subprocess
 import yaml
-
 from requests import Response
 from unittest import TestCase
 from unittest.mock import Mock, patch, call, mock_open
