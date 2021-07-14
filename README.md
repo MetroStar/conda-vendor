@@ -43,7 +43,10 @@ positional arguments:
 ```
 
 ## Usage
-`conda-vendor` solves an environment from an environment.yaml and can  create a `vendor_manifest.yaml` a yaml for CICD and also local channels to resolve an environment offline. 
+`conda-vendor` solves an environment from an environment.yaml and currently has two main functions:
+
+* create a `vendor_manifest.yaml` a yaml for CICD
+* Create local channels to resolve an environment offline. 
 
 ### Manifest
 To create a manifest run `conda-vendor manifest -f your_env.yaml --manifest-filename your_manifest_out.yaml`
@@ -84,7 +87,7 @@ optional arguments:
                         local environment filename
 ```
 
-### Create and offline conda env 
+### Create and offline conda environment 
 
 **Run:** `conda env create -f local_yaml.yaml --offline`
 >if you used a custom name for your local yaml use the name of that file.
@@ -94,8 +97,8 @@ optional arguments:
 `export CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY=False` 
 * If you have channels `defaults` in your `env.yaml` conda-vendor will throw a runtime error.
 please explicitly state the needed channels.
-* we should make this a conda package in subsequent chore
-* Logging is always on 
+* we should make this a conda package in subsequent chore?
+* Logging is always on :( sorry
 * cli needs tests and has some extra features
 
 ## P1's Hardening Manifest:
