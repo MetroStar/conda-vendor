@@ -43,7 +43,7 @@ positional arguments:
 ```
 
 ## Usage
-`conda-vendor` solves an environemnt from an environemnt.yaml and can  create a `vendor_manifest.yaml` a yaml for CICD and also local channels to resolve an environment offline. 
+`conda-vendor` solves an environment from an environment.yaml and can  create a `vendor_manifest.yaml` a yaml for CICD and also local channels to resolve an environment offline. 
 
 ### Manifest
 To create a manifest run `conda-vendor manifest -f your_env.yaml --manifest-filename your_manifest_out.yaml`
@@ -64,10 +64,10 @@ where each entry contains information about a package in your environment.
 
 ### Local channels
 running `conda-vendor local_channels -f your_env_yaml.yaml` will do the following:
-* solve the environemnt
+* solve the environment
 * create a `vendor_manifest.yaml`
 * create local channels for the channels supplied in `your_env_yaml.yaml`
-* Create a `local_yaml.yaml` with the local channels and packages needed for your env with an environement name that has a `local_` prefixed to the original environment name
+* Create a `local_yaml.yaml` with the local channels and packages needed for your env with an environment name that has a `local_` prefixed to the original environment name
 
 local_channels also has options for custom paths and names. 
 ```
