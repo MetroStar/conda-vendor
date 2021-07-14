@@ -1,7 +1,0 @@
-name: minimal_env
-channels:
-  - main
-  - conda-forge
-dependencies:
-  - python=3.9.5
-  - conda-mirror
