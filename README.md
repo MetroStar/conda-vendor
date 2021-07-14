@@ -4,20 +4,29 @@ Tool to create local conda channels and manifests for vendor deployments
 ### Setup
 All steps run from within `conda-vendor` directory
 Create the conda-vendor environemnt
+
 **run:** `conda create -f conda_vendor_test.yaml`
+
 Activate the environment 
+
 **run:** `conda activate conda_vendor_test_env`
 
 ### Tests 
 Make sure everything is good to go with
+
 **run:** `pytest -vvv`
 
 ## Build
 Build your conda-vendor wheel 
+
 **run:** `python setup.py bdist_wheel`
+
 Install the package 
+
 `pip install dist/conda_vendor-0.1-py3-none-any.whl `
+
 Make sure it looks good 
+
 **run:**: `conda-vendor -h `
 
 You should see something like 
@@ -38,7 +47,9 @@ positional arguments:
 
 ### Manifest
 To create a manifest run `conda-vendor manifest -f your_env.yaml --manifest-filename your_manifest_out.yaml`
+
 if no manifest filename is supplied it will default to `vendor_manifest.yaml`.
+
 It will looks something like this:
 ```
 resources:
@@ -76,7 +87,7 @@ optional arguments:
 ### Create and offline conda env 
 
 **Run:** `conda env create -f local_yaml.yaml --offline`
-if you used a custom name for your local yaml use the name of that file.
+>if you used a custom name for your local yaml use the name of that file.
 
 ### Notes:
 * If you do not have pip as a required package in your yaml you will need to export the flag
