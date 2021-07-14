@@ -14,9 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 #TODO: This class exists solely to allow us to get the
 #      patching to work in the tests
-class _lock_wrapper():
-    def _init_():
-        return
+class LockWrapper():
     @staticmethod
     def parse(*args):
         return parse_environment_file(*args)
@@ -58,7 +56,7 @@ class CondaChannel:
         channel_root=pathlib.Path("./"),
     ):
         self.platform  = get_conda_platform()
-        parse_return = _lock_wrapper.parse(environment_yml, self.platform)
+        parse_return = LockWrapper.parse(environment_yml, self.platform)
         self.env_deps = {
                 'specs': parse_return.specs,
                 'channels': parse_return.channels
@@ -87,7 +85,7 @@ class CondaChannel:
     def solve_environment(self):
         if not self.env_deps.get('solution', None):
             logging.info(f"Solving ENV | Channels : {self.env_deps['channels']} | specs : {self.env_deps['specs']} , platform : {self.platform}")
-            solution = _lock_wrapper.solve(
+            solution = LockWrapper.solve(
                 "conda",
                 self.env_deps['channels'],
                 specs=self.env_deps['specs'],

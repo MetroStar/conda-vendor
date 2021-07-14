@@ -14,7 +14,9 @@ from conda_vendor.core import(
         create_manifest,
         CondaChannel,
         get_local_environment_yaml,
-        create_local_environment_yaml
+        create_local_environment_yaml,
+        LockWrapper
+        
         )
 from .conftest import mock_response
 
@@ -44,7 +46,6 @@ def test_get_conda_platform(mock_struct)-> None :
 def test_CondaChannel_init(minimal_environment):
     conda_channel = CondaChannel(minimal_environment)
 
-    #make sure platforms includes noarch and given platform
     expected_platforms = [conda_channel.platform, 'noarch']
     for platform in expected_platforms:
         assert platform in conda_channel.valid_platforms
@@ -55,17 +56,14 @@ def test_CondaChannel_init(minimal_environment):
 def test_CondaChannel_init_conda_forge(minimal_conda_forge_environment):
     conda_channel = CondaChannel(minimal_conda_forge_environment)
 
-    #make sure platforms includes noarch and given platform
     expected_platforms = [conda_channel.platform, 'noarch']
     for platform in expected_platforms:
         assert platform in conda_channel.valid_platforms
 
-    #make sure specs has correct packages
     expected_packages = ['python=3.9.5', 'conda-mirror=0.8.2']
     for pkg in expected_packages:
         assert pkg in conda_channel.env_deps['specs']
 
-    #make sure we have expected channels
     expected_channels = ['main', 'conda-forge']
     for chan in expected_channels:
         assert chan in conda_channel.channels
@@ -87,13 +85,11 @@ dependencies:
     environment_yml = create_environment(tmp_path)
     conda_channel = CondaChannel(environment_yml)
 
-    #make sure we have expected channels
     assert 'main' in conda_channel.channels
     assert 'nodefaults' not in conda_channel.channels
 
 
-# assume conda_lock.solve_specs_for_arch works
-@patch('conda_vendor.core._lock_wrapper.solve')
+@patch('conda_vendor.core.LockWrapper.solve')
 def test_CondaChannel_solve_environment(mock, conda_channel_fixture):
     platform = conda_channel_fixture.platform
     mock_data = {
@@ -640,8 +636,6 @@ def test_CondaChannel_download_binaries(
 
 
 
-
-# API for CLI and testing ##
 @patch('conda_vendor.core.CondaChannel.get_manifest')
 def test_get_manifest(mock_get_manifest, conda_channel_fixture):
     mock_get_manifest.return_value = {}
@@ -698,6 +692,34 @@ def test_create_local_environment_yamll(conda_channel_fixture):
         result = yaml.load(f, Loader=SafeLoader)
 
     TestCase().assertDictEqual(result, expected)
+
+
+def test_LockWrapper_init():
+    lw = LockWrapper()
+    assert isinstance(lw, LockWrapper)    
+
+@patch('conda_vendor.core.LockWrapper.parse')
+def test_LockWrapper_parse(mock):
+    test_args=["dummy_path.yaml", "dummy-64"]
+    LockWrapper.parse(*test_args)
+    print(mock.call_args)
+    mock.assert_called_once_with("dummy_path.yaml", "dummy-64")
+
+@patch('conda_vendor.core.LockWrapper.solve')
+def test_LockWrapper_solve(mock):
+    
+    test_args =  ["conda", ["dummy_channel"]]
+    test_kwargs = {
+        "specs": ["dummy_spec"],
+        "platform":"dummy_platform"
+    }
+    LockWrapper.solve(*test_args, **test_kwargs)
+    mock.assert_called_once_with(*test_args, **test_kwargs)
+   
+
+    
+
+
     
 
     
