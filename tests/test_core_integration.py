@@ -2,16 +2,10 @@ import os
 import subprocess
 import sys
 import yaml
-
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from yaml import SafeLoader
 
-from conda_vendor.core import (
-    CondaChannel,
-    create_manifest,
-    create_local_channels,
-    create_local_environment_yaml,
-)
+from conda_vendor.core import create_manifest, create_local_channels
 
 
 
@@ -21,15 +15,23 @@ def test_int_create_manifest(tmp_path, conda_channel_fixture):
     test_manifest_filename = "THE_TEST_MANIFEST.YAML"
     path_to_manifest = tmp_path / test_manifest_filename
     create_manifest(conda_channel_fixture, manifest_filename=test_manifest_filename)
-    
+
     with path_to_manifest.open("r") as f:
         result = yaml.load(f, Loader=SafeLoader)
 
     yaml.dump(result, sys.stdout, indent=2)
-    result_python_name = [entry["name"] for entry in result['resources'] if entry["name"].startswith(expected_python_entry)] 
-    result_mirror_name = [entry["name"] for entry in result['resources'] if entry["name"].startswith(expected_mirror_version)] 
+    result_python_name = [
+        entry["name"]
+        for entry in result["resources"]
+        if entry["name"].startswith(expected_python_entry)
+    ]
+    result_mirror_name = [
+        entry["name"]
+        for entry in result["resources"]
+        if entry["name"].startswith(expected_mirror_version)
+    ]
     assert len(result_python_name) > 0
-    assert len(result_mirror_name) > 0   
+    assert len(result_mirror_name) > 0
 
 
 def test_int_create_conda_env_from_local_yaml(tmp_path, conda_channel_fixture):

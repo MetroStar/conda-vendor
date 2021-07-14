@@ -1,10 +1,6 @@
-
-import os
 import pytest
-import sys
-from unittest.mock import Mock, patch
-sys.path.append(os.path.dirname(__file__))
 from conda_vendor.core import CondaChannel
+from unittest.mock import Mock
 
 
 @pytest.fixture(scope="function")
@@ -68,6 +64,3 @@ def mock_response(
     if json_data:
         mock_resp.json = Mock(return_value=json_data)
     return mock_resp
-
-
-
