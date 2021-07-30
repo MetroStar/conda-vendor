@@ -13,7 +13,6 @@ from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 
 
-
 logging.basicConfig(level=logging.INFO)
 
 
@@ -135,10 +134,14 @@ class CondaChannel:
         for conda_lock_fetch_info in fetch_actions:
             url = conda_lock_fetch_info["url"]
             name = conda_lock_fetch_info["fn"]
+            # Iron bank doesn't allow filenames in the manifest to start with "_". See below example
+            # https://repo1.dso.mil/dsop/opensource/dask-gateway/miniconda/-/commit/23258816b0d21b0287170e37315284f8d6bdc070
+            if name.startswith("_"):
+                name = name[1:]
             validation_value = conda_lock_fetch_info["sha256"]
             validation = {"type": "sha256", "value": validation_value}
             vendor_manifest_list.append(
-                {"url": url, "name": name, "validation": validation}
+                {"url": url, "filename": name, "validation": validation}
             )
         self.manifest = {"resources": vendor_manifest_list}
         return self.manifest

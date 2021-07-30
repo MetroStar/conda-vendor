@@ -20,7 +20,6 @@ from conda_vendor.core import (
 from .conftest import mock_response
 
 
-
 @patch("requests.Session.get")
 def test_improved_download(mock) -> None:
     mock.return_value = Mock(Response)
@@ -195,7 +194,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
         "resources": [
             {
                 "url": f"https://fake.com/main/{platform}/name1",
-                "name": "name1",
+                "filename": "name1",
                 "validation": {
                     "type": "sha256",
                     "value": "sha1",
@@ -203,7 +202,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
             },
             {
                 "url": f"https://fake.com/main/noarch/name2",
-                "name": "name2",
+                "filename": "name2",
                 "validation": {
                     "type": "sha256",
                     "value": "sha2",
@@ -211,7 +210,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
             },
             {
                 "url": f"https://fake.com/conda-forge/{platform}/name3",
-                "name": "name3",
+                "filename": "name3",
                 "validation": {
                     "type": "sha256",
                     "value": "sha3",
@@ -219,7 +218,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
             },
             {
                 "url": f"https://fake.com/main/{platform}/name4",
-                "name": "name4",
+                "filename": "name4",
                 "validation": {
                     "type": "sha256",
                     "value": "sha4",
@@ -241,7 +240,7 @@ def test_CondaChannel_create_manifest(mock, conda_channel_fixture):
         "resources": [
             {
                 "url": f"https://fake.com/main/{platform}/name1",
-                "name": "name1",
+                "filename": "name1",
                 "validation": {
                     "type": "sha256",
                     "value": "sha1",
