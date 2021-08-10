@@ -180,7 +180,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
                 },
                 {
                     "channel": f"http://fake.com/main/{platform}",
-                    "url": f"https://fake.com/main/{platform}/name4",
+                    "url": f"https://fake.com/main/{platform}/_name4",
                     "fn": "name4",
                     "sha256": "sha4",
                 },
@@ -217,7 +217,7 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
                 },
             },
             {
-                "url": f"https://fake.com/main/{platform}/name4",
+                "url": f"https://fake.com/main/{platform}/_name4",
                 "filename": "name4",
                 "validation": {
                     "type": "sha256",
