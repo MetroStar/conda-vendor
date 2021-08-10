@@ -8,7 +8,6 @@ from yaml import SafeLoader
 from conda_vendor.core import create_manifest, create_local_channels
 
 
-
 def test_int_create_manifest(tmp_path, conda_channel_fixture):
     expected_python_entry = "python-3.9.5"
     expected_mirror_version = "conda-mirror-0.8.2"
@@ -21,14 +20,14 @@ def test_int_create_manifest(tmp_path, conda_channel_fixture):
 
     yaml.dump(result, sys.stdout, indent=2)
     result_python_name = [
-        entry["name"]
+        entry["filename"]
         for entry in result["resources"]
-        if entry["name"].startswith(expected_python_entry)
+        if entry["filename"].startswith(expected_python_entry)
     ]
     result_mirror_name = [
-        entry["name"]
+        entry["filename"]
         for entry in result["resources"]
-        if entry["name"].startswith(expected_mirror_version)
+        if entry["filename"].startswith(expected_mirror_version)
     ]
     assert len(result_python_name) > 0
     assert len(result_mirror_name) > 0
