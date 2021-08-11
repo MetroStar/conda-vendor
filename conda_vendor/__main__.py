@@ -8,7 +8,8 @@ import yaml
 # TODO:
 #   needs better user experience
 
-from conda_vendor.core import (
+# from conda_vendor.core import (
+from core import (
     get_manifest,
     create_manifest,
     get_local_environment_yaml,
