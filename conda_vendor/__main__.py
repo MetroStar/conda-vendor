@@ -8,6 +8,11 @@ import yaml
 # TODO:
 #   needs better user experience
 
+# TODO:
+# do this better
+''' Switch the comments on the following lines
+    to build the conda-vendor wheel
+'''
 # from conda_vendor.core import (
 from core import (
     get_manifest,
