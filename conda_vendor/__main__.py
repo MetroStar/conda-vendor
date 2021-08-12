@@ -5,16 +5,15 @@ import pathlib
 import sys
 import yaml
 
+# The ever-classic hacky python path fix
+# There's probably a better way, but this does the trick
+myPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, myPath + '/../')
+
 # TODO:
 #   needs better user experience
 
-# TODO:
-# do this better
-''' Switch the comments on the following lines
-    to build the conda-vendor wheel
-'''
-# from conda_vendor.core import (
-from core import (
+from conda_vendor.core import (
     get_manifest,
     create_manifest,
     get_local_environment_yaml,
