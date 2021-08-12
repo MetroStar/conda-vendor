@@ -5,11 +5,6 @@ import pathlib
 import sys
 import yaml
 
-# The ever-classic hacky python path fix
-# There's probably a better way, but this does the trick
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../')
-
 # TODO:
 #   needs better user experience
 
