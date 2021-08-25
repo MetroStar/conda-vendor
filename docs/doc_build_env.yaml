@@ -1,0 +1,7 @@
+name: vendor-docs
+channels:
+  - conda-forge
+dependencies:
+  - pydata-sphinx-theme
+  - myst-parser
+  - sphinx
