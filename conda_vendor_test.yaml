@@ -1,12 +1,15 @@
 name: conda_vendor_test_env
 channels:
-  - main
   - conda-forge
+  - main
 dependencies:
   - python=3.9.5
   - conda-lock
   - pip
-  - pytest 
+  - pytest
+  - jake
+  - xmltodict
+  - jupyterlab
   - pip:
     - wheel
     - setuptools

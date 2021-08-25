@@ -199,20 +199,12 @@ class CondaChannel:
             return self.manifest
         # unintended consequence
         fetch_actions = self.solve_environment()
-        vendor_manifest_list = []
-        for conda_lock_fetch_info in fetch_actions:
-            url = conda_lock_fetch_info["url"]
-            name = conda_lock_fetch_info["fn"]
-            # Iron bank doesn't allow filenames in the manifest to start with "_". See below example
-            # https://repo1.dso.mil/dsop/opensource/dask-gateway/miniconda/-/commit/23258816b0d21b0287170e37315284f8d6bdc070
-            if name.startswith("_"):
-                name = name[1:]
-            validation_value = conda_lock_fetch_info["sha256"]
-            validation = {"type": "sha256", "value": validation_value}
-            vendor_manifest_list.append(
-                {"url": url, "filename": name, "validation": validation}
-            )
-        self.manifest = {"resources": vendor_manifest_list}
+        fetch_dict = {}
+        for action in fetch_actions:
+            action['purl'] = f"pkg:conda/{action['name']}@{action['version']}?url={action['url']}"
+            fetch_dict[action['name']] = action
+    
+        self.manifest = fetch_dict
         return self.manifest
 
     def create_manifest(self, *, manifest_filename=None):
@@ -226,7 +218,7 @@ class CondaChannel:
         outpath_file_name = self.channel_root / cleaned_name
         logging.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
-            yaml.dump(manifest, f, sort_keys=False)
+            yaml.dump(manifest, f, sort_keys=False) 
         return manifest
 
     def get_local_environment_yaml(

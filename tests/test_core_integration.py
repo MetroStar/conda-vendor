@@ -10,8 +10,8 @@ from conda_vendor.core import create_manifest, create_local_channels, CondaChann
 
 
 def test_int_create_manifest(tmp_path, conda_channel_fixture):
-    expected_python_entry = "python-3.9.5"
-    expected_mirror_version = "conda-mirror-0.8.2"
+    expected_python_version = "3.9.5"
+    expected_mirror_version = "0.8.2"
     test_manifest_filename = "THE_TEST_MANIFEST.YAML"
     path_to_manifest = tmp_path / test_manifest_filename
     create_manifest(conda_channel_fixture, manifest_filename=test_manifest_filename)
@@ -20,26 +20,18 @@ def test_int_create_manifest(tmp_path, conda_channel_fixture):
         result = yaml.load(f, Loader=SafeLoader)
 
     yaml.dump(result, sys.stdout, indent=2)
-    result_python_name = [
-        entry["filename"]
-        for entry in result["resources"]
-        if entry["filename"].startswith(expected_python_entry)
-    ]
-    result_mirror_name = [
-        entry["filename"]
-        for entry in result["resources"]
-        if entry["filename"].startswith(expected_mirror_version)
-    ]
-    assert len(result_python_name) > 0
-    assert len(result_mirror_name) > 0
+    result_python_version = result['python']['version']
+    
+    result_mirror_version = result['conda-mirror']['version']
 
+    assert expected_python_version == result_python_version
+    assert expected_mirror_version == result_mirror_version
 
 def test_int_create_conda_env_from_local_yaml(tmp_path, conda_channel_fixture):
     test_env_name = "the_test_conda_env"
     path_to_local_env_yaml = tmp_path / "local_yaml.yaml"
     create_local_channels(conda_channel_fixture, local_environment_name=test_env_name)
-    print(f'{conda_channel_fixture.env_deps["solution"]["actions"]["FETCH"]=}')
-    assert 0
+
     try:
         cmd_str_clean = f"conda clean --all -y"
 
