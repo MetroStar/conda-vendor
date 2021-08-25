@@ -51,6 +51,37 @@ def test_CondaChannel_init(minimal_environment):
     assert "main" in conda_channel.channels
 
 
+# need init test hurrr
+def test_CondaChannel_init_manifest_exist(minimal_environment, tmp_path):
+    dummy_manifest = {}
+    dummy_manifest_data = [
+        {
+            "url": "https://conda.anaconda.org/wonderland/osx-64/wrong_rabbit-1.0-pyhfhfhfhf.tar.bz2",
+            "filename": "wrong_rabbit.tar.bz2",
+            "validation": {"type": "sha256", " value": "POOOBEAR"},
+        }
+    ]
+    dummy_manifest["resources"] = dummy_manifest_data
+
+    expected_manifest = dummy_manifest
+
+    dummy_manifest_path = tmp_path / "dummy_manifest.yml"
+    with open(dummy_manifest_path, "w") as f:
+        yaml.dump(dummy_manifest, f, sort_keys=False)
+
+    conda_channel = CondaChannel(
+        minimal_environment, channel_root=tmp_path, manifest_path=dummy_manifest_path
+    )
+    result_manifest = conda_channel.manifest
+    result_platforms = [conda_channel.platform, "noarch"]
+
+    for platform in result_platforms:
+        assert platform in conda_channel.valid_platforms
+    assert "wrong_rabbit=1.0" in conda_channel.env_deps["specs"]
+    assert "wonderland" in conda_channel.channels
+    TestCase().assertDictEqual(result_manifest, expected_manifest)
+
+
 def test_CondaChannel_init_conda_forge(minimal_conda_forge_environment):
     conda_channel = CondaChannel(minimal_conda_forge_environment)
 
@@ -666,3 +697,125 @@ def test_LockWrapper_solve(mock):
     test_kwargs = {"specs": ["dummy_spec"], "platform": "dummy_platform"}
     LockWrapper.solve(*test_args, **test_kwargs)
     mock.assert_called_once_with(*test_args, **test_kwargs)
+
+
+@patch("yaml.load")
+def test_load_manifest(mock, conda_channel_fixture, tmp_path):
+    test_manifest_path = tmp_path / "test_manifest.yml"
+    with open(test_manifest_path, "w") as y:
+        y.write("test")
+    conda_channel_fixture.load_manifest(test_manifest_path)
+    mock.assert_called_once_with = [test_manifest_path, yaml.SafeLoader]
+
+
+def test_instantiate_conda_lock_fetch_from_manifest_file(conda_channel_fixture):
+    test_manifest = {}
+    test_manifest_data = [
+        {
+            "url": "https://conda.anaconda.org/wonderland/osx-64/wrong_rabbit.tar.bz2",
+            "filename": "wrong_rabbit.tar.bz2",
+            "validation": {"type": "sha256", "value": "POOOBEAR"},
+        }
+    ]
+    test_manifest["resources"] = test_manifest_data
+    expected_fetch = {
+        "actions": {
+            "FETCH": [
+                {
+                    "url": "https://conda.anaconda.org/wonderland/osx-64/wrong_rabbit.tar.bz2",
+                    "channel": "https://conda.anaconda.org/wonderland/osx-64",
+                    "fn": "wrong_rabbit.tar.bz2",
+                    "sha256": "POOOBEAR",
+                }
+            ]
+        }
+    }
+
+    conda_channel_fixture.manifest = test_manifest
+    conda_channel_fixture.instantiate_conda_lock_fetch_from_manifest_file()
+    result_fetch = conda_channel_fixture.env_deps["solution"]
+    TestCase().assertDictEqual(result_fetch, expected_fetch)
+
+
+def test_CondaChannel_get_package_entry(conda_channel_fixture):
+    test_filename1 = "mydummypkg1-1.1.94-pydwefwef.tar.bz"
+    test_filename2 = "mydummypkg2-1-pydwefwef.tar.bz"
+
+    result1 = conda_channel_fixture.get_package_entry(test_filename1)
+    result2 = conda_channel_fixture.get_package_entry(test_filename2)
+
+    expected1 = "mydummypkg1=1.1.94"
+    expected2 = "mydummypkg2=1"
+
+    assert result1 == expected1
+    assert result2 == expected2
+
+
+def test_CondaChannel_get_yaml_from_manifest(conda_channel_fixture, tmp_path):
+    dummy_manifest = {}
+    dummy_manifest_data = [
+        {
+            "url": "https://conda.anaconda.org/wonderland/osx-64/wrong_rabbit-1.0-pyhfhfhfhf.tar.bz2",
+            "filename": "wrong_rabbit.tar.bz2",
+            "validation": {"type": "sha256", " value": "POOOBEAR"},
+        }
+    ]
+    dummy_manifest["resources"] = dummy_manifest_data
+
+    expected_env_yaml = {
+        "name": "conda_vendor_env",
+        "channels": ["wonderland"],
+        "dependencies": ["wrong_rabbit=1.0"],
+    }
+
+    dummy_manifest_path = tmp_path / "dummy_manifest.yml"
+    with open(dummy_manifest_path, "w") as f:
+        yaml.dump(dummy_manifest, f, sort_keys=False)
+
+    result = conda_channel_fixture.get_yaml_from_manifest(dummy_manifest)
+    TestCase().assertDictEqual(result, expected_env_yaml)
+
+
+def test_get_yaml_channel_basepath(conda_channel_fixture):
+    test_destination_channel_root = "mcdonalds"
+    expected_return_alternate_root = "mcdonalds"
+
+    test_conda_channel = conda_channel_fixture
+    expected_return_default_root = test_conda_channel.channel_root
+
+    actual_return_alternate_root = test_conda_channel.get_yaml_channel_basepath(
+        test_destination_channel_root
+    )
+    assert expected_return_alternate_root == actual_return_alternate_root
+
+    actual_return_default_root = test_conda_channel.get_yaml_channel_basepath()
+    assert expected_return_default_root == actual_return_default_root
+
+
+# def test_get_yaml_channel_basepath(conda_channel_fixture, minimal_conda_forge_environment):
+#     with open(minimal_conda_forge_environment, "r") as f:
+#         test_yaml = yaml.load(f, Loader=SafeLoader)
+
+#     expected_yaml = test_yaml.copy()
+#     destination_path = 'mcdonalds'
+#     expected_yaml['channels'] = [f'{destination_path}/main', f'{destination_path}/conda-forge']
+
+#     expected_dict = {
+#         "name": "minimal_conda_forge_env"
+#         "channels": [f'{destination_path}/main', f'{destination_path}/conda-forge']
+#         "dependencies": ["python=3.9.5", "conda-mirror=0.8.2"]
+#     }
+
+
+# content = """name: minimal_conda_forge_env
+# channels:
+# - main
+# - conda-forge
+# dependencies:
+# - python=3.9.5
+# - conda-mirror=0.8.2
+# """
+#     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
+#     fn.write(content)
+#     return fn
+#     return 0

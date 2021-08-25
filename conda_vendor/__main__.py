@@ -1,7 +1,7 @@
 import argparse
 import functools
 import os
-import pathlib
+from pathlib import Path
 import sys
 import yaml
 
@@ -18,7 +18,20 @@ from conda_vendor.core import (
 )
 
 # manifest commands
+#need
 class CommandManifest:
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str, help="mainifest commands")
+        parser.add_argument("-f", "--file", type=str, help="environment.yaml file")
+        parser.add_argument("--dry-run", action="store_true", help="print manifest")
+        parser.add_argument(
+            "-o", "--only-files", action="store_true", help="list all files in manifest"
+        )
+        parser.add_argument(
+            "-m", "--manifest-filename",  type=Path, default=Path("./vendor_manifest.yaml"), help="write manifest to this file"
+        )
+
     @staticmethod
     def print(environment_yml):
         conda_channel = CondaChannel(environment_yml)
@@ -37,17 +50,7 @@ class CommandManifest:
         for resource in manifest_yaml["resources"]:
             print(resource["name"])
 
-    def __init__(self, parent_parser, cmd_str):
-        self.cmd_str = cmd_str
-        parser = parent_parser.add_parser(cmd_str, help="mainifest commands")
-        parser.add_argument("-f", "--file", type=str, help="environment.yaml file")
-        parser.add_argument("--dry-run", action="store_true", help="print manifest")
-        parser.add_argument(
-            "-o", "--only-files", action="store_true", help="list all files in manifest"
-        )
-        parser.add_argument(
-            "-m", "--manifest-filename", type=str, help="write manifest to this file"
-        )
+
 
     def do_command(self, args, environment_yml):
         if args.dry_run:
@@ -59,10 +62,26 @@ class CommandManifest:
 
 
 #  local_yaml commands
+#keep 
 class CommandLocalYaml:
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str, help="local yaml commands")
+        parser.add_argument(
+            "--dry-run", action="store_true", help="print local environment.yaml"
+        )
+        parser.add_argument("-f", "--file", type=Path, default=Path("./env.yaml"), help="environment.yaml file")
+        parser.add_argument("-n", "--name", type=str, help="local environment name")
+        parser.add_argument(
+            "-e", "--environment-file",  type=str, help="local environment filename"
+        )
+        parser.add_argument(
+            "--channel-root", type=Path, default=Path(), help="Parent path to local channel in local_yaml, useful if deployment path differs from channel creation"
+        )
+
     @staticmethod
-    def print(environment_yml, local_environment_name=None):
-        conda_channel = CondaChannel(environment_yml)
+    def print(environment_yml, local_environment_name=None,channel_root=Path()):
+        conda_channel = CondaChannel(environment_yml,channel_root=channel_root)
         local_yaml = get_local_environment_yaml(
             conda_channel, local_environment_name=local_environment_name
         )
@@ -70,41 +89,37 @@ class CommandLocalYaml:
 
     @staticmethod
     def create(
-        environment_yml, local_environment_name=None, local_environment_filename=None
+        environment_yml, local_environment_name=None, local_environment_filename=None, channel_root=Path()
     ):
 
-        conda_channel = CondaChannel(environment_yml)
+        conda_channel = CondaChannel(environment_yml,channel_root=channel_root)
         create_local_environment_yaml(
             conda_channel,
             local_environment_name=local_environment_name,
             local_environment_filename=local_environment_filename,
         )
 
-    def __init__(self, parent_parser, cmd_str):
-        self.cmd_str = cmd_str
-        parser = parent_parser.add_parser(cmd_str, help="local yaml commands")
-        parser.add_argument(
-            "--dry-run", action="store_true", help="print local environment.yaml"
-        )
-        parser.add_argument("-f", "--file", type=str, help="environment.yaml file")
-        parser.add_argument("-n", "--name", type=str, help="local environment name")
-        parser.add_argument(
-            "-e", "--environment-file", type=str, help="local environment filename"
-        )
 
-    def do_command(self, args, environment_yml):
+
+    def do_command(self, args):
         if args.dry_run:
-            self.print(environment_yml, local_environment_name=args.name)
+            self.print(environment_yml=args.file, local_environment_name=args.name, channel_root=args.channel_root)
         else:
             self.create(
-                environment_yml,
+                environment_yml=args.file,
                 local_environment_name=args.name,
                 local_environment_filename=args.environment_file,
+                channel_root=args.channel_root
             )
 
 
 # local channels commands
 class CommandLocalChannels:
+    def __init__(self, parent_parser, cmd_str):
+        self.cmd_str = cmd_str
+        parser = parent_parser.add_parser(cmd_str, help="local channel commands")
+        self.configure_parser(parser)
+
     @staticmethod
     def print(
         environment_yml,
@@ -124,13 +139,17 @@ class CommandLocalChannels:
         manifest_filename=None,
         local_environment_name=None,
         local_environment_filename=None,
-        channel_root=None,
+        channel_root=Path(),
+        manifest_path=None
     ):
 
-        if not channel_root:
-            conda_channel = CondaChannel(environment_yml)
-        else:
-            conda_channel = CondaChannel(environment_yml, channel_root=channel_root)
+        #TODO: problem with needing channel root to be included , this should be passed to the class type issue cant Path(None)
+        #https://dusty.phillips.codes/2018/08/13/python-loading-pathlib-paths-with-argparse/
+        conda_channel = CondaChannel(
+            environment_yml, 
+            channel_root=channel_root,
+            manifest_path=manifest_path
+        )
 
         create_local_channels(
             conda_channel,
@@ -143,60 +162,54 @@ class CommandLocalChannels:
         parser.add_argument(
             "--dry-run", action="store_true", help="local environment filename"
         )
-        parser.add_argument("-f", "--file", type=str, help="environment.yaml file")
+        parser.add_argument("-f", "--file", type=Path, default=Path("./env.yaml"), help="environment.yaml file")
         parser.add_argument(
-            "--channel-root", type=str, help="create local directories here"
+            "--channel-root", type=Path, default=Path() , help="create local directories here"
         )
         parser.add_argument(
-            "-m", "--manifest-filename", type=str, help="write manifest to this file"
+            "-m", "--rename-manifest-file", type=str, help="write manifest to this file"
         )
         parser.add_argument("-n", "--name", type=str, help="local environment name")
         parser.add_argument(
-            "-e", "--environment-file", type=str, help="local environment filename"
+            "-e", "--environment-file", type=str,  help="local environment filename"
+        )
+        parser.add_argument(
+            "-p", "--manifest-filepath", type=Path, default=Path("./vendor_manifest.yaml"), help="Full path to manifest file, skips inital solve"
         )
 
-    def __init__(self, parent_parser, cmd_str):
-        self.cmd_str = cmd_str
-        parser = parent_parser.add_parser(cmd_str, help="local channel commands")
-        self.configure_parser(parser)
 
-    def do_command(self, args, environment_yml):
+
+    def do_command(self, args):
+        check_environment_yaml_or_manifest_yaml(args.file, args.manifest_filepath)
         if args.dry_run:
             self.print(
-                environment_yml,
-                manifest_filename=args.manifest_filename,
+                args.file,
+                manifest_filename=args.rename_manifest_file,
                 local_environment_name=args.name,
                 local_environment_filename=args.environment_file,
                 channel_root=args.channel_root,
+                manifest_path = args.manifest_filepath
             )
         else:
             self.create(
-                environment_yml,
-                manifest_filename=args.manifest_filename,
+                args.file,
+                manifest_filename=args.rename_manifest_file,
                 local_environment_name=args.name,
                 local_environment_filename=args.environment_file,
                 channel_root=args.channel_root,
+                manifest_path = args.manifest_filepath
+
             )
 
 
-def check_environment_yaml(filename: None):
-    if not filename:
-        sys.stderr.write("must supply environment.yml file.\n")
+def check_environment_yaml_or_manifest_yaml(filename, manifest_filepath):
+
+    fn_missing= not filename.exists()
+    mfn_missing = not manifest_filepath.exists()
+
+    if fn_missing and mfn_missing:
+        sys.stderr.write(f"manifest_filepath exists :{manifest_filepath.exists()} filename exists :{filename.exists()} one of these files must exist!\n")
         sys.exit(1)
-
-    environment_yml = pathlib.Path(filename)
-    if not environment_yml.exists():
-        sys.stderr.write(f"enviroment file '{str(filename)}' does not exist\n")
-        sys.exit(1)
-
-    return environment_yml
-
-
-def cook_argv_for_default(sub_commands, default):
-    cmd_match = list(map(lambda x: int(x in sub_commands), sys.argv))
-    has_command = bool(functools.reduce(lambda a, b: a + b, cmd_match))
-    if not has_command:
-        sys.argv = [sys.argv[0], default] + sys.argv[1:]
 
 
 def main():
@@ -212,14 +225,14 @@ def main():
         "local_yaml": CommandLocalYaml(sub_parsers, "local_yaml"),
         "local_channels": CommandLocalChannels(sub_parsers, "local_channels"),
     }
-
-    if not ("-h" in sys.argv or "--help" in sys.argv):
-        cook_argv_for_default(list(sub_commands.keys()), "local_channels")
+    has_cmd = bool(set(sub_commands.keys()).intersection(set(sys.argv)))
+    if not ("-h" in sys.argv or "--help" in sys.argv) and not has_cmd :
+        sys.argv = [sys.argv[0], "local_channels"] + sys.argv[1:]
 
     args, rest = parser.parse_known_args()
-    environment_yml = check_environment_yaml(args.file)
+    
     if args.subcmd in sub_commands:
-        sub_commands[args.subcmd].do_command(args, environment_yml)
+        sub_commands[args.subcmd].do_command(args)
         return
 
     sys.stderr.write("an error occured.\n")

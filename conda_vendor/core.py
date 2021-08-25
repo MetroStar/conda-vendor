@@ -1,7 +1,8 @@
 import hashlib
 import json
 import logging
-import pathlib
+import os
+from pathlib import Path
 import requests
 import struct
 import sys
@@ -51,37 +52,103 @@ def get_conda_platform(platform=sys.platform):
 
 
 class CondaChannel:
-    def __init__(
-        self,
-        environment_yml,
-        *,
-        channel_root=pathlib.Path("./"),
-    ):
+    def __init__(self, environment_yml, *, channel_root=Path(), manifest_path=None):
+        self.channel_root = Path(channel_root)
+        logging.info(f"channel_root : {self.channel_root.absolute()}")
         self.platform = get_conda_platform()
-        parse_return = LockWrapper.parse(environment_yml, self.platform)
-        self.env_deps = {"specs": parse_return.specs, "channels": parse_return.channels}
-        with open(environment_yml) as f:
-            self.env_deps["environment"] = yaml.load(f, Loader=yaml.SafeLoader)
 
         self.valid_platforms = [self.platform, "noarch"]
+        if manifest_path is not None:
+            # create channels from manifest
+            logging.info(f"Using manifest :{manifest_path} ")
+            self.manifest = self.load_manifest(manifest_path=manifest_path)
 
-        bad_channels = ["nodefaults"]
-        self.channels = [
-            chan
-            for chan in self.env_deps["environment"]["channels"]
-            if chan not in bad_channels
-        ]
+            environment_yaml = self.get_yaml_from_manifest(self.manifest)
+            # TODO
+            print("env", environment_yaml)
+            self.env_deps = {
+                "specs": environment_yaml["dependencies"],
+                "channels": environment_yaml["channels"],
+            }
+            self.env_deps["environment"] = environment_yaml
+            self.channels = environment_yaml["channels"]
+        else:
+            # create from envirenment yaml
+            self.manifest = manifest_path
+            parse_return = LockWrapper.parse(environment_yml, self.platform)
+            self.env_deps = {
+                "specs": parse_return.specs,
+                "channels": parse_return.channels,
+            }
+            logging.info(f"Using Environment :{environment_yml}")
+            with open(environment_yml) as f:
+                self.env_deps["environment"] = yaml.load(f, Loader=yaml.SafeLoader)
+            bad_channels = ["nodefaults"]
+            self.channels = [
+                chan
+                for chan in self.env_deps["environment"]["channels"]
+                if chan not in bad_channels
+            ]
+            if "defaults" in self.channels:
+                raise RuntimeError("default channels are not supported.")
 
-        if "defaults" in self.channels:
-            raise RuntimeError("default channels are not supported.")
-
-        self.manifest = None
         self.extended_data = None
         self.all_repo_data = None
-        self.channel_root = pathlib.Path(channel_root)
-        logging.info(f"channel_root : {self.channel_root.absolute()}")
+
+    def load_manifest(self, manifest_path):
+        with open(manifest_path) as f:
+            return yaml.load(f, Loader=yaml.SafeLoader)  # Need to double check this
+
+    def get_package_entry(self, filename):
+        name_pieces = filename.split("-")
+        version_start = [s[0].isdigit() for s in name_pieces].index(True)
+
+        pkg = "-".join(name_pieces[:version_start])
+        ver = name_pieces[version_start]
+        return "=".join([pkg, ver])
+
+    def get_yaml_from_manifest(self, manifest: dict) -> dict:
+        env_yaml = {"name": "conda_vendor_env", "channels": [], "dependencies": []}
+        dep_list = []
+        channel_list = []
+        print("my_manifest", manifest)
+        for entry in manifest["resources"]:
+            print("entry", entry)
+            channel_name, _, fn = entry["url"].split("/")[-3:]
+            dep = self.get_package_entry(fn)
+
+            channel_list.append(channel_name)
+            dep_list.append(dep)
+
+        env_yaml["channels"] = list(set(channel_list))
+        env_yaml["dependencies"] = dep_list
+        return env_yaml
+
+    # this is run when not needed.
+    def instantiate_conda_lock_fetch_from_manifest_file(self):
+        # creates fetch if a manifest is present, but not when a fetch exists.
+        if self.manifest is not None and "solution" not in self.env_deps.keys():
+            fetch_data = []
+            for entry in self.manifest["resources"]:
+                url = entry["url"]
+                channel, fn = os.path.split(url)
+                sha256 = entry["validation"]["value"]
+
+                temp = {}
+                temp["url"] = url
+                temp["channel"] = channel
+                temp["fn"] = fn
+                temp["sha256"] = sha256
+
+                fetch_data.append(temp)
+            self.env_deps["solution"] = {"actions": {"FETCH": fetch_data}}
+            return {"actions": {"FETCH": fetch_data}}
 
     def solve_environment(self):
+        # getting a manifest is dependent on this function having populated env_deps['solution']
+        # we need this to not trigger if a manifest is already present
+
+        self.instantiate_conda_lock_fetch_from_manifest_file()
         if not self.env_deps.get("solution", None):
             logging.info(
                 f"Solving ENV | Channels : {self.env_deps['channels']} | specs : {self.env_deps['specs']} , platform : {self.platform}"
@@ -93,29 +160,31 @@ class CondaChannel:
                 platform=self.platform,
             )
             self.env_deps["solution"] = solution
-
         return self.env_deps["solution"]["actions"]["FETCH"]
 
     def get_extended_data(self):
+        # this is a data structure that stores info on where to get the
+        # binaries and how to filter the upstream repodata.json.
+        # we need this structure to filter the repodata
         if self.extended_data:
             return self.extended_data
 
         fetch_data = self.solve_environment()
         extended_data = {}
-
+        # sets up repodata structure for each channel in the yaml
         for chan in self.channels:
             extended_data[chan] = {
                 self.platform: {"repodata_url": [], "entries": []},
                 "noarch": {"repodata_url": [], "entries": []},
             }
-
+        # gets the channel url
         for entry in fetch_data:
             (channel, subdir) = entry["channel"].split("/")[-2:]
             extended_data[channel][subdir]["repodata_url"].append(
                 entry["channel"] + "/repodata.json"
             )
             extended_data[channel][subdir]["entries"].append(entry)
-
+        # gets the repodata url
         for chan in self.channels:
             for subdir in self.valid_platforms:
                 extended_data[chan][subdir]["repodata_url"] = list(
@@ -128,7 +197,7 @@ class CondaChannel:
     def get_manifest(self):
         if self.manifest:
             return self.manifest
-
+        # unintended consequence
         fetch_actions = self.solve_environment()
         vendor_manifest_list = []
         for conda_lock_fetch_info in fetch_actions:
@@ -147,32 +216,44 @@ class CondaChannel:
         return self.manifest
 
     def create_manifest(self, *, manifest_filename=None):
+        # TODO: This will still create a manifest if creating from a manifest. Should probably be removed if creating from manifest.
         manifest = self.get_manifest()
 
         if not manifest_filename:
             manifest_filename = "vendor_manifest.yaml"
 
-        cleaned_name = pathlib.PurePath(manifest_filename).name
+        cleaned_name = Path(manifest_filename).name
         outpath_file_name = self.channel_root / cleaned_name
         logging.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
             yaml.dump(manifest, f, sort_keys=False)
         return manifest
 
-    def get_local_environment_yaml(self, *, local_environment_name=None):
+    def get_local_environment_yaml(
+        self, *, local_environment_name=None, destination_channel_root=None
+    ):
 
         local_yml = self.env_deps["environment"].copy()
         if not local_environment_name:
             local_environment_name = f"local_{local_yml['name']}"
         local_yml["name"] = local_environment_name
         channel_paths = []
+
+        yaml_channel_basepath = self.get_yaml_channel_basepath(destination_channel_root)
+
         for chan in self.channels:
-            local_chan = self.channel_root / self.local_channel_name(chan)
+            local_chan = yaml_channel_basepath / self.local_channel_name(chan)
             channel_paths.append(f"file://{local_chan.absolute()}")
         channel_paths.append("nodefaults")
 
         local_yml["channels"] = channel_paths
         return local_yml
+
+    def get_yaml_channel_basepath(self, destination_channel_root=None):
+        if destination_channel_root is not None:
+            return destination_channel_root
+        else:
+            return self.channel_root
 
     def create_local_environment_yaml(
         self, *, local_environment_name=None, local_environment_filename=None
@@ -184,7 +265,7 @@ class CondaChannel:
         if not local_environment_filename:
             local_environment_filename = "local_yaml.yaml"
 
-        cleaned_name = pathlib.PurePath(local_environment_filename).name
+        cleaned_name = Path(local_environment_filename).name
         outpath_file_name = self.channel_root / cleaned_name
         logging.info(f"Creating local_env_yaml :  {outpath_file_name.absolute()} ")
         with open(outpath_file_name, "w") as f:
@@ -192,7 +273,7 @@ class CondaChannel:
         return local_yml
 
     def fetch_and_filter(self, subdir, extended_repo_data):
-
+        # returns a channel specific repodata.json
         repo_data = {"info": {"subdir": subdir}, "packages": {}, "packages.conda": {}}
 
         if not extended_repo_data["repodata_url"]:
@@ -218,7 +299,7 @@ class CondaChannel:
     def get_all_repo_data(self):
         if self.all_repo_data:
             return self.all_repo_data
-
+        # this is where
         extended_data = self.get_extended_data()
         all_repo_data = {}
         for chan in self.channels:
@@ -263,7 +344,7 @@ class CondaChannel:
         return hashlib.sha256(byte_array).hexdigest()
 
     @staticmethod
-    def download_and_validate(out: pathlib.Path, url, sha256):
+    def download_and_validate(out: Path, url, sha256):
         logging.info(f"downloading {url} to {out}")
         response = improved_download(url)
         url_data = response.content
@@ -320,6 +401,7 @@ def create_local_environment_yaml(
     return local_yaml
 
 
+# change to more comprehensive name
 def create_local_channels(
     conda_channel: CondaChannel,
     *,
@@ -328,9 +410,11 @@ def create_local_channels(
     local_environment_filename=None,
 ):
     conda_channel.create_manifest(manifest_filename=manifest_filename)
+
     conda_channel.create_local_environment_yaml(
         local_environment_name=local_environment_name,
         local_environment_filename=local_environment_filename,
     )
+    # calls solve unintentionally re-writes the fetch when it doesnt need to.
     conda_channel.write_repo_data()
     conda_channel.download_binaries()
