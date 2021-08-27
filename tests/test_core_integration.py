@@ -20,12 +20,13 @@ def test_int_create_manifest(tmp_path, conda_channel_fixture):
         result = yaml.load(f, Loader=SafeLoader)
 
     yaml.dump(result, sys.stdout, indent=2)
-    result_python_version = result['python']['version']
-    
-    result_mirror_version = result['conda-mirror']['version']
+    result_python_version = result["python"]["version"]
+
+    result_mirror_version = result["conda-mirror"]["version"]
 
     assert expected_python_version == result_python_version
     assert expected_mirror_version == result_mirror_version
+
 
 def test_int_create_conda_env_from_local_yaml(tmp_path, conda_channel_fixture):
     test_env_name = "the_test_conda_env"

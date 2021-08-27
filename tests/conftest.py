@@ -1,5 +1,6 @@
 import pytest
 from conda_vendor.core import CondaChannel
+from conda_vendor.manifest import MetaManifest
 from unittest.mock import Mock
 import sys
 import struct
@@ -23,6 +24,19 @@ def minimal_environment(tmpdir_factory):
     content = """name: minimal_env
 channels:
 - main
+dependencies:
+- python=3.9.5"""
+    fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
+    fn.write(content)
+    return fn
+
+
+@pytest.fixture(scope="function")
+def minimal_environment_defaults(tmpdir_factory):
+    content = """name: minimal_env
+channels:
+- main
+- defaults
 dependencies:
 - python=3.9.5"""
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
@@ -537,6 +551,11 @@ def conda_channel_fixture(tmp_path, minimal_conda_forge_environment, scope="modu
     return CondaChannel(minimal_conda_forge_environment, channel_root=tmp_path)
 
 
+@pytest.fixture
+def meta_manifest_fixture(tmp_path, minimal_conda_forge_environment, scope="module"):
+    return MetaManifest(minimal_conda_forge_environment, manifest_root=tmp_path)
+
+
 def mock_response(
     status=200, content=b"CONTENT", json_data=None, raise_for_status=None
 ):
@@ -558,3 +577,51 @@ def mock_response(
     if json_data:
         mock_resp.json = Mock(return_value=json_data)
     return mock_resp
+
+
+def fetch_data():
+    [
+        {
+            "arch": "x86_64",
+            "build": "py39h27cfd23_1003",
+            "build_number": 1003,
+            "channel": "https://conda.anaconda.org/main/linux-64",
+            "constrains": [],
+            "depends": ["cffi >=1.0.0", "libgcc-ng >=7.3.0", "python >=3.9,<3.10.0a0"],
+            "fn": "brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+            "license": "MIT",
+            "license_family": "MIT",
+            "md5": "c203ffc7bbba991c7089d4b383cfd92c",
+            "name": "brotlipy",
+            "platform": "linux",
+            "sha256": "8c2071f706c2b445dabb781f7f8f008b23a29957468ec6894f050bfb3a2d5bf4",
+            "size": 357797,
+            "subdir": "linux-64",
+            "timestamp": 1605539534667,
+            "url": "https://conda.anaconda.org/main/linux-64/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+            "version": "0.7.0",
+        },
+        {
+            "arch": None,
+            "build": "pyhd8ed1ab_0",
+            "build_number": 0,
+            "channel": "https://conda.anaconda.org/conda-forge/noarch",
+            "constrains": [],
+            "depends": ["appdirs", "click", "filelock", "python >=3.6", "requests"],
+            "fn": "ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+            "license": "MIT",
+            "license_family": "MIT",
+            "md5": "52a7f7cc9076e2c8a25e15e19ad42821",
+            "name": "ensureconda",
+            "noarch": "python",
+            "package_type": "noarch_python",
+            "platform": None,
+            "sha256": "ddf53aae78fbbccd01e4bb4eb97beb0403b89b91fa75f1ffecc5b59647f07c72",
+            "size": 11368,
+            "subdir": "noarch",
+            "timestamp": 1609981069692,
+            "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+            "version": "1.4.1",
+        },
+    ]
+
