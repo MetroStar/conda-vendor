@@ -70,8 +70,6 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
     assert test_meta_manifest.platform is not None
     assert test_meta_manifest.manifest_root == expected_manifest_root
     assert test_meta_manifest.channels == ["main"]
-    print("ex", expected_env_deps)
-    print("res", test_meta_manifest.env_deps)
     TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
 
 
@@ -116,6 +114,7 @@ def test_get_purl(meta_manifest_fixture):
 
 
 def test_get_manifest(meta_manifest_fixture):
+    test_meta_manifest = meta_manifest_fixture
     platform = meta_manifest_fixture.platform
     test_fetch_entries = [
         {
@@ -134,7 +133,7 @@ def test_get_manifest(meta_manifest_fixture):
 
     test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
 
-    meta_manifest_fixture.env_deps["solution"] = test_env_deps_solution
+    test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 
     expected_manifest = {
         "main": {
@@ -174,3 +173,62 @@ def test_get_manifest(meta_manifest_fixture):
     print("result", meta_manifest_fixture.get_manifest())
     TestCase().maxDiff = None
     TestCase().assertDictEqual(expected_manifest, actual_manifest)
+
+ 
+def test_get_manifest_filename(meta_manifest_fixture):
+    test_manifest_fixture = meta_manifest_fixture
+
+    expected_default_filename = "vendor_manifest.yaml"
+    actual_default_filename = test_manifest_fixture.get_manifest_filename()
+
+    expected_custom_filename = "woah-johnny.yaml"
+    actual_custom_filename = test_manifest_fixture.get_manifest_filename('woah-johnny.yaml')
+
+    assert expected_default_filename == actual_default_filename
+    assert expected_custom_filename == actual_custom_filename
+
+
+def test_create_manifest(meta_manifest_fixture, tmp_path):
+    test_manifest_fixture = meta_manifest_fixture
+    platform = test_manifest_fixture.platform
+    expected_manifest = {
+        "main": {
+            "noarch": {"repodata_url": [], "entries": []},
+            f"{platform}": {
+                "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
+                "entries": [
+                    {
+                        "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                        "name": "brotlipy",
+                        "version": "0.7.0",
+                        "channel": f"https://conda.anaconda.org/main/{platform}",
+                        "purl": f"pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                    }
+                ],
+            },
+        },
+        "conda-forge": {
+            "noarch": {
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "entries": [
+                    {
+                        "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                        "name": "ensureconda",
+                        "version": "1.4.1",
+                        "channel": "https://conda.anaconda.org/conda-forge/noarch",
+                        "purl": "pkg:conda/ensureconda@1.4.1?url=https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                    }
+                ],
+            },
+            f"{platform}": {"repodata_url": [], "entries": []},
+        },
+    }
+    expected_path = tmp_path / "vendor_manifest.yaml"
+    test_manifest_fixture.manifest = expected_manifest
+    test_manifest_fixture.create_manifest()
+
+    with open(expected_path, "r") as f:
+        actual_manifest = yaml.load(f, Loader=SafeLoader)
+
+    TestCase().assertDictEqual(actual_manifest, expected_manifest)
+

@@ -80,12 +80,19 @@ class MetaManifest:
         if "defaults" in self.channels:
             raise RuntimeError("default channels are not supported.")
 
+
+    def get_manifest_filename(self,manifest_filename=None):
+        if manifest_filename is None:
+            manifest_filename = "vendor_manifest.yaml" 
+        return manifest_filename
+
+
+
     def create_manifest(self, *, manifest_filename=None):
         # TODO: This will still create a manifest if creating from a manifest. Should probably be removed if creating from manifest.
         manifest = self.get_manifest()
 
-        if not manifest_filename:
-            manifest_filename = "vendor_manifest.yaml"
+        manifest_filename = self.get_manifest_filename(manifest_filename = manifest_filename)
 
         cleaned_name = Path(manifest_filename).name
         outpath_file_name = self.manifest_root / cleaned_name
@@ -95,28 +102,28 @@ class MetaManifest:
         return manifest
 
     def get_manifest(self):
-        def nested_dict():
-            return collections.defaultdict(nested_dict)
+        if self.manifest is None:
+            def nested_dict():
+                return collections.defaultdict(nested_dict)
 
-        d = nested_dict()
+            d = nested_dict()
 
-        fetch_actions = self.solve_environment()
+            fetch_actions = self.solve_environment()
 
-        for chan in self.channels:  # edit to self.channels
-            d[chan]["noarch"] = {"repodata_url": [], "entries": []}
-            d[chan][self.platform] = {"repodata_url": [], "entries": []}
+            for chan in self.channels:  # edit to self.channels
+                d[chan]["noarch"] = {"repodata_url": [], "entries": []}
+                d[chan][self.platform] = {"repodata_url": [], "entries": []}
 
-        for entry in fetch_actions:
-            print(entry)
-            (channel, platform) = entry["channel"].split("/")[-2:]
+            for entry in fetch_actions:
+                print(entry)
+                (channel, platform) = entry["channel"].split("/")[-2:]
 
-            d[channel][platform]["repodata_url"] = f"{entry['channel']}/repodata.json"
-            entry["purl"] = self.get_purl(entry)
-            d[channel][platform]["entries"].append(entry)
+                d[channel][platform]["repodata_url"] = f"{entry['channel']}/repodata.json"
+                entry["purl"] = self.get_purl(entry)
+                d[channel][platform]["entries"].append(entry)
 
-        # Turns nested default dict into normal python dict
-        self.manifest = json.loads(json.dumps(d))
-
+            # Turns nested default dict into normal python dict
+            self.manifest = json.loads(json.dumps(d))
         return self.manifest
 
     def get_purl(self, fetch_entry):
