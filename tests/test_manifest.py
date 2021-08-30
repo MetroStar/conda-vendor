@@ -1,7 +1,6 @@
 from requests.adapters import urldefragauth
 from conda_vendor.manifest import (
     MetaManifest,
-    improved_download,
     get_conda_platform,
     LockWrapper,
 )
@@ -16,17 +15,6 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, call, mock_open
 from yaml import safe_load
 from yaml.loader import SafeLoader
-
-
-@patch("requests.Session.get")
-def test_improved_download(mock) -> None:
-    mock.return_value = Mock(Response)
-    test_url = "https://NOT_REAL.com"
-    result = improved_download(test_url)
-    result_called_with = mock.call_args[0][0]
-    assert result_called_with == test_url
-    assert mock.call_count == 1
-    assert isinstance(result, Response)
 
 
 @patch("struct.calcsize")
@@ -174,7 +162,7 @@ def test_get_manifest(meta_manifest_fixture):
     TestCase().maxDiff = None
     TestCase().assertDictEqual(expected_manifest, actual_manifest)
 
- 
+
 def test_get_manifest_filename(meta_manifest_fixture):
     test_manifest_fixture = meta_manifest_fixture
 
@@ -182,7 +170,9 @@ def test_get_manifest_filename(meta_manifest_fixture):
     actual_default_filename = test_manifest_fixture.get_manifest_filename()
 
     expected_custom_filename = "woah-johnny.yaml"
-    actual_custom_filename = test_manifest_fixture.get_manifest_filename('woah-johnny.yaml')
+    actual_custom_filename = test_manifest_fixture.get_manifest_filename(
+        "woah-johnny.yaml"
+    )
 
     assert expected_default_filename == actual_default_filename
     assert expected_custom_filename == actual_custom_filename
@@ -231,4 +221,3 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
         actual_manifest = yaml.load(f, Loader=SafeLoader)
 
     TestCase().assertDictEqual(actual_manifest, expected_manifest)
-

@@ -1,9 +1,10 @@
 import pytest
-from conda_vendor.core import CondaChannel
+from conda_vendor.conda_channel import CondaChannel
 from conda_vendor.manifest import MetaManifest
 from unittest.mock import Mock
 import sys
 import struct
+import yaml
 
 
 def get_conda_platform(platform=sys.platform):
@@ -17,6 +18,49 @@ def get_conda_platform(platform=sys.platform):
 
     bits = struct.calcsize("P") * 8
     return f"{_platform_map[platform]}-{bits}"
+
+
+@pytest.fixture(scope="function")
+def get_path_location_for_manifest_fixture(tmpdir_factory):
+    platform = get_conda_platform()
+    fixture_manifest = {
+        "main": {
+            "noarch": {"repodata_url": [], "entries": []},
+            f"{platform}": {
+                "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
+                "entries": [
+                    {
+                        "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                        "name": "brotlipy",
+                        "version": "0.7.0",
+                        "channel": f"https://conda.anaconda.org/main/{platform}",
+                        "purl": f"pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                    }
+                ],
+            },
+        },
+        "conda-forge": {
+            "noarch": {
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "entries": [
+                    {
+                        "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                        "name": "ensureconda",
+                        "version": "1.4.1",
+                        "channel": "https://conda.anaconda.org/conda-forge/noarch",
+                        "purl": "pkg:conda/ensureconda@1.4.1?url=https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                    }
+                ],
+            },
+            f"{platform}": {"repodata_url": [], "entries": []},
+        },
+    }
+
+    fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
+    with open(fn, "w") as f:
+        yaml.dump(fixture_manifest, f, sort_keys=False)
+
+    return fn
 
 
 @pytest.fixture(scope="function")
@@ -547,8 +591,12 @@ def minimal_manifest():
 
 
 @pytest.fixture
-def conda_channel_fixture(tmp_path, minimal_conda_forge_environment, scope="module"):
-    return CondaChannel(minimal_conda_forge_environment, channel_root=tmp_path)
+def conda_channel_fixture(
+    tmp_path, get_path_location_for_manifest_fixture, scope="module"
+):
+    return CondaChannel(
+        channel_root=tmp_path, meta_manifest_path=get_path_location_for_manifest_fixture
+    )
 
 
 @pytest.fixture
@@ -624,4 +672,3 @@ def fetch_data():
             "version": "1.4.1",
         },
     ]
-

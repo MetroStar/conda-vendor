@@ -201,9 +201,11 @@ class CondaChannel:
         fetch_actions = self.solve_environment()
         fetch_dict = {}
         for action in fetch_actions:
-            action['purl'] = f"pkg:conda/{action['name']}@{action['version']}?url={action['url']}"
-            fetch_dict[action['name']] = action
-    
+            action[
+                "purl"
+            ] = f"pkg:conda/{action['name']}@{action['version']}?url={action['url']}"
+            fetch_dict[action["name"]] = action
+
         self.manifest = fetch_dict
         return self.manifest
 
@@ -218,7 +220,7 @@ class CondaChannel:
         outpath_file_name = self.channel_root / cleaned_name
         logging.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
-            yaml.dump(manifest, f, sort_keys=False) 
+            yaml.dump(manifest, f, sort_keys=False)
         return manifest
 
     def get_local_environment_yaml(

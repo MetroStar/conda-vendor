@@ -28,15 +28,6 @@ class LockWrapper:
         return solve_specs_for_arch(*args, **kwargs)
 
 
-def improved_download(url):
-    session = requests.Session()
-    retry = Retry(connect=5, backoff_factor=0.5)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session.get(url)
-
-
 # see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(platform=sys.platform):
     _platform_map = {
@@ -80,19 +71,18 @@ class MetaManifest:
         if "defaults" in self.channels:
             raise RuntimeError("default channels are not supported.")
 
-
-    def get_manifest_filename(self,manifest_filename=None):
+    def get_manifest_filename(self, manifest_filename=None):
         if manifest_filename is None:
-            manifest_filename = "vendor_manifest.yaml" 
+            manifest_filename = "vendor_manifest.yaml"
         return manifest_filename
-
-
 
     def create_manifest(self, *, manifest_filename=None):
         # TODO: This will still create a manifest if creating from a manifest. Should probably be removed if creating from manifest.
         manifest = self.get_manifest()
 
-        manifest_filename = self.get_manifest_filename(manifest_filename = manifest_filename)
+        manifest_filename = self.get_manifest_filename(
+            manifest_filename=manifest_filename
+        )
 
         cleaned_name = Path(manifest_filename).name
         outpath_file_name = self.manifest_root / cleaned_name
@@ -103,6 +93,7 @@ class MetaManifest:
 
     def get_manifest(self):
         if self.manifest is None:
+
             def nested_dict():
                 return collections.defaultdict(nested_dict)
 
@@ -118,7 +109,9 @@ class MetaManifest:
                 print(entry)
                 (channel, platform) = entry["channel"].split("/")[-2:]
 
-                d[channel][platform]["repodata_url"] = f"{entry['channel']}/repodata.json"
+                d[channel][platform][
+                    "repodata_url"
+                ] = f"{entry['channel']}/repodata.json"
                 entry["purl"] = self.get_purl(entry)
                 d[channel][platform]["entries"].append(entry)
 
