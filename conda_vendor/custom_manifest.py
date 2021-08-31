@@ -28,14 +28,16 @@ class CustomManifest(ABC):
 
 
 class IBManifest(CustomManifest):
-    def write_custom_manifest(self, output_file_path=None):
-        
-        if output_file_path is None:
-            output_file_path = self.manifest_root
+    def write_custom_manifest(self, output_file_dir=None):
+        if output_file_dir is None:
+            output_file_dir = self.manifest_root
 
-        ib_manifest_path = output_file_path / "ironbank_manifest.yaml"
-        with open(output_file_path) as f:
-            yaml.dump(output_path, f, sort_keys=False)
+        if self.custom_manifest is None:
+            self.custom_manifest = self.format_custom_manifest()
+
+        output_file_dir = output_file_dir / "ironbank_manifest.yaml"
+        with open(output_file_dir, "w") as f:
+            yaml.dump(self.custom_manifest, f, sort_keys=False)
 
     @staticmethod
     def strip_lead_underscore(in_str):

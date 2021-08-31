@@ -118,7 +118,12 @@ def test_get_manifest(meta_manifest_fixture):
         },
     ]
 
-    test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
+    test_env_deps_solution = {
+        "actions": {
+            "FETCH": test_fetch_entries,
+            "LINK": [],
+        }
+    }
 
     test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 

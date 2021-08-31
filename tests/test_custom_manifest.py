@@ -21,6 +21,7 @@ def test_load_manifest(mock, tmp_path):
     assert "write_custom_manifest" in dir(IBManifest)
     assert "format_custom_manifest" in dir(IBManifest)
 
+
 @patch("conda_vendor.custom_manifest.CustomManifest.read_meta_manifest")
 def test_write_custom_manifest(mock_read_meta_manifest, tmp_path):
     mock_read_meta_manifest.return_value = None
@@ -28,18 +29,21 @@ def test_write_custom_manifest(mock_read_meta_manifest, tmp_path):
 
     test_custom_manifest = {"foomanchu": True}
     c.custom_manifest = test_custom_manifest
+
     expected_custom_manifest = test_custom_manifest
 
-    test_custom_manifest_destination = tmp_path / 'ironbank_manifest.yml'
+    test_output_directory = tmp_path
+    expected_custom_manifest_destination = (
+        test_output_directory / "ironbank_manifest.yaml"
+    )
 
-    
-    c.write_custom_manifest(test_custom_manifest_destination)
-
-    with open(test_custom_manifest_destination) as f:
+    c.write_custom_manifest(test_output_directory)
+    with open(expected_custom_manifest_destination, "r") as f:
         actual_custom_manifest = yaml.load(f, Loader=yaml.SafeLoader)
 
     assert actual_custom_manifest == expected_custom_manifest
-    
+
+
 def test_IBManifest_strip_lead_underscore():
     test_str = "_poobear"
     expected_str = "poobear"

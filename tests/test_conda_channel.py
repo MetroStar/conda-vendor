@@ -121,26 +121,30 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
 
     expected_calls = [
         call(
-            "osx-64",
+            f"{platform}",
             {
-                "repodata_url": "https://conda.anaconda.org/main/osx-64/repodata.json",
+                "repodata_url": [
+                    f"https://conda.anaconda.org/main/{platform}/repodata.json"
+                ],
                 "entries": [
                     {
-                        "url": "https://conda.anaconda.org/main/osx-64/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                        "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
                         "name": "brotlipy",
                         "version": "0.7.0",
-                        "channel": "https://conda.anaconda.org/main/osx-64",
-                        "purl": "pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/osx-64/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                        "channel": f"https://conda.anaconda.org/main/{platform}",
+                        "purl": f"pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
                     }
                 ],
             },
         ),
         call("noarch", {"repodata_url": [], "entries": []}),
-        call("osx-64", {"repodata_url": [], "entries": []}),
+        call(f"{platform}", {"repodata_url": [], "entries": []}),
         call(
             "noarch",
             {
-                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "repodata_url": [
+                    "https://conda.anaconda.org/conda-forge/noarch/repodata.json"
+                ],
                 "entries": [
                     {
                         "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
@@ -184,7 +188,6 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
     mock.return_value = fake_repo_data_entry
 
     result = conda_channel_fixture.get_all_repo_data()
-
     TestCase().assertListEqual(mock.call_args_list, expected_calls)
     TestCase().assertDictEqual(result, expected_all_repodata)
 
