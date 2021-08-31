@@ -6,7 +6,6 @@ from conda_vendor.manifest import (
 )
 import pytest
 from requests import Response
-
 import hashlib
 import json
 import yaml
