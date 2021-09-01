@@ -118,18 +118,13 @@ def test_get_manifest(meta_manifest_fixture):
         },
     ]
 
-    test_env_deps_solution = {
-        "actions": {
-            "FETCH": test_fetch_entries,
-            "LINK": [],
-        }
-    }
+    test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
 
     test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 
     expected_manifest = {
         "main": {
-            "noarch": {"repodata_url": [], "entries": []},
+            "noarch": {"repodata_url": None, "entries": []},
             f"{platform}": {
                 "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
                 "entries": [
@@ -156,7 +151,7 @@ def test_get_manifest(meta_manifest_fixture):
                     }
                 ],
             },
-            f"{platform}": {"repodata_url": [], "entries": []},
+            f"{platform}": {"repodata_url": None, "entries": []},
         },
     }
 
@@ -187,7 +182,7 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
     platform = test_manifest_fixture.platform
     expected_manifest = {
         "main": {
-            "noarch": {"repodata_url": [], "entries": []},
+            "noarch": {"repodata_url": None, "entries": []},
             f"{platform}": {
                 "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
                 "entries": [
@@ -214,7 +209,7 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
                     }
                 ],
             },
-            f"{platform}": {"repodata_url": [], "entries": []},
+            f"{platform}": {"repodata_url": None, "entries": []},
         },
     }
     expected_path = tmp_path / "vendor_manifest.yaml"
@@ -223,5 +218,6 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
 
     with open(expected_path, "r") as f:
         actual_manifest = yaml.load(f, Loader=SafeLoader)
+    
 
     TestCase().assertDictEqual(actual_manifest, expected_manifest)

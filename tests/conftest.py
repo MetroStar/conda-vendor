@@ -25,11 +25,10 @@ def get_path_location_for_manifest_fixture(tmpdir_factory):
     platform = get_conda_platform()
     fixture_manifest = {
         "main": {
-            "noarch": {"repodata_url": [], "entries": []},
+            "noarch": {"repodata_url": None, "entries": []},
             f"{platform}": {
-                "repodata_url": [
-                    f"https://conda.anaconda.org/main/{platform}/repodata.json"
-                ],
+                "repodata_url": 
+                    f"https://conda.anaconda.org/main/{platform}/repodata.json",
                 "entries": [
                     {
                         "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
@@ -43,9 +42,8 @@ def get_path_location_for_manifest_fixture(tmpdir_factory):
         },
         "conda-forge": {
             "noarch": {
-                "repodata_url": [
-                    "https://conda.anaconda.org/conda-forge/noarch/repodata.json"
-                ],
+                "repodata_url": 
+                    "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
                 "entries": [
                     {
                         "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
@@ -56,7 +54,7 @@ def get_path_location_for_manifest_fixture(tmpdir_factory):
                     }
                 ],
             },
-            f"{platform}": {"repodata_url": [], "entries": []},
+            f"{platform}": {"repodata_url": None, "entries": []},
         },
     }
 

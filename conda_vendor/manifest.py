@@ -77,7 +77,6 @@ class MetaManifest:
         return manifest_filename
 
     def create_manifest(self, *, manifest_filename=None):
-        # TODO: This will still create a manifest if creating from a manifest. Should probably be removed if creating from manifest.
         manifest = self.get_manifest()
 
         manifest_filename = self.get_manifest_filename(
@@ -102,8 +101,8 @@ class MetaManifest:
             fetch_actions = self.solve_environment()
 
             for chan in self.channels:  # edit to self.channels
-                d[chan]["noarch"] = {"repodata_url": [], "entries": []}
-                d[chan][self.platform] = {"repodata_url": [], "entries": []}
+                d[chan]["noarch"] = {"repodata_url": None, "entries": []}
+                d[chan][self.platform] = {"repodata_url": None, "entries": []}
 
             for entry in fetch_actions:
                 print(entry)

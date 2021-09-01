@@ -47,12 +47,12 @@ class CondaChannel:
             "packages": {},
             "packages.conda": {},
         }
-        if manifest_subset_metadata["repodata_url"] == []:
+        if manifest_subset_metadata["repodata_url"] == None:
             return repo_data
 
         valid_names = [entry["fn"] for entry in manifest_subset_metadata["entries"]]
 
-        repo_data_url = manifest_subset_metadata["repodata_url"][0]
+        repo_data_url = manifest_subset_metadata["repodata_url"]
         logging.info(
             f"fetching repo data from :{repo_data_url} to subdir : {conda_subdir}"
         )

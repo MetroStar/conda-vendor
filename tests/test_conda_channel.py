@@ -70,7 +70,7 @@ def test_CondaChannel_init_(mock, tmp_path, get_path_location_for_manifest_fixtu
 def test_CondaChannel_fetch_and_filter_repodata(mock_download, conda_channel_fixture):
 
     fake_manifest_subset_metadata = {
-        "repodata_url": ["https://url1", "https://url2"],
+        "repodata_url": "https://url1",
         "entries": [{"fn": "file1"}, {"fn": "file2"}, {"fn": "file3"},],
     }
     fake_live_repo_data_json = {
@@ -123,9 +123,9 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
         call(
             f"{platform}",
             {
-                "repodata_url": [
+                "repodata_url": 
                     f"https://conda.anaconda.org/main/{platform}/repodata.json"
-                ],
+                ,
                 "entries": [
                     {
                         "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
@@ -137,14 +137,14 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
                 ],
             },
         ),
-        call("noarch", {"repodata_url": [], "entries": []}),
-        call(f"{platform}", {"repodata_url": [], "entries": []}),
+        call("noarch", {"repodata_url": None, "entries": []}),
+        call(f"{platform}", {"repodata_url": None, "entries": []}),
         call(
             "noarch",
             {
-                "repodata_url": [
+                "repodata_url": 
                     "https://conda.anaconda.org/conda-forge/noarch/repodata.json"
-                ],
+                ,
                 "entries": [
                     {
                         "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
@@ -342,14 +342,14 @@ def test_CondaChannel_download_binaries(mock_download, conda_channel_fixture):
     mock_extended_data = {
         "main": {
             f"{platform}": {
-                "repodata_url": ["https://url1"],
+                "repodata_url": "https://url1",
                 "entries": [{"id": 1}, {"id": 2}],
             },
-            "noarch": {"repodata_url": ["https://url2"], "entries": [{"id": 3}]},
+            "noarch": {"repodata_url": "https://url2", "entries": [{"id": 3}]},
         },
         "conda-forge": {
-            f"{platform}": {"repodata_url": [], "entries": []},
-            "noarch": {"repodata_url": ["https://url3"], "entries": [{"id": 4}]},
+            f"{platform}": {"repodata_url": None, "entries": []},
+            "noarch": {"repodata_url": "https://url3", "entries": [{"id": 4}]},
         },
     }
     conda_channel_fixture.meta_manifest = mock_extended_data
