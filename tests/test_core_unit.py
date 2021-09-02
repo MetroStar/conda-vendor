@@ -226,22 +226,34 @@ def test_CondaChannel_get_manifest(conda_channel_fixture):
             {
                 "url": f"https://fake.com/main/{platform}/name1",
                 "filename": "name1",
-                "validation": {"type": "sha256", "value": "sha1",},
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha1",
+                },
             },
             {
                 "url": f"https://fake.com/main/noarch/name2",
                 "filename": "name2",
-                "validation": {"type": "sha256", "value": "sha2",},
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha2",
+                },
             },
             {
                 "url": f"https://fake.com/conda-forge/{platform}/name3",
                 "filename": "name3",
-                "validation": {"type": "sha256", "value": "sha3",},
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha3",
+                },
             },
             {
                 "url": f"https://fake.com/main/{platform}/_name4",
                 "filename": "name4",
-                "validation": {"type": "sha256", "value": "sha4",},
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha4",
+                },
             },
         ]
     }
@@ -260,7 +272,10 @@ def test_CondaChannel_create_manifest(mock, conda_channel_fixture):
             {
                 "url": f"https://fake.com/main/{platform}/name1",
                 "filename": "name1",
-                "validation": {"type": "sha256", "value": "sha1",},
+                "validation": {
+                    "type": "sha256",
+                    "value": "sha1",
+                },
             }
         ]
     }
@@ -310,7 +325,11 @@ def test_CondaChannel_fetch_and_filter(mock_download, conda_channel_fixture):
     platform = conda_channel_fixture.platform
     fake_extended_repo_data = {
         "repodata_url": ["https://url1", "https://url2"],
-        "entries": [{"fn": "file1"}, {"fn": "file2"}, {"fn": "file3"},],
+        "entries": [
+            {"fn": "file1"},
+            {"fn": "file2"},
+            {"fn": "file3"},
+        ],
     }
     fake_live_repo_data_json = {
         "info": {"subdir": "fake_subdir"},
@@ -329,7 +348,10 @@ def test_CondaChannel_fetch_and_filter(mock_download, conda_channel_fixture):
     }
     expected = {
         "info": {"subdir": "fake_subdir"},
-        "packages": {"file1": {"id": 1}, "file2": {"id": 3},},
+        "packages": {
+            "file1": {"id": 1},
+            "file2": {"id": 3},
+        },
         "packages.conda": {"file3": {"id": 5}},
     }
 
@@ -376,11 +398,15 @@ def test_CondaChannel_get_all_repo_data(mock_data, mock_fetch, conda_channel_fix
         "chan2": {
             platform: {
                 "repodata_url": ["https://url4"],
-                "entries": [{"fn": "file5"},],
+                "entries": [
+                    {"fn": "file5"},
+                ],
             },
             "noarch": {
                 "repodata_url": ["https://url5"],
-                "entries": [{"fn": "file6"},],
+                "entries": [
+                    {"fn": "file6"},
+                ],
             },
         },
     }

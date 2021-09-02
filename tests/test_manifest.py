@@ -118,7 +118,12 @@ def test_get_manifest(meta_manifest_fixture):
         },
     ]
 
-    test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
+    test_env_deps_solution = {
+        "actions": {
+            "FETCH": test_fetch_entries,
+            "LINK": [],
+        }
+    }
 
     test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 
@@ -218,6 +223,5 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
 
     with open(expected_path, "r") as f:
         actual_manifest = yaml.load(f, Loader=SafeLoader)
-    
 
     TestCase().assertDictEqual(actual_manifest, expected_manifest)

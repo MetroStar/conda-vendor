@@ -1,4 +1,6 @@
+import re
 from conda_vendor.cli import (
+    create_ironbank_from_meta_manifest2,
     create_ironbank_from_meta_manifest,
     create_local_channels_from_meta_manifest,
     create_meta_manifest_from_env_yml,
@@ -9,6 +11,8 @@ import subprocess
 import os
 import yaml
 from unittest import TestCase
+from unittest.mock import Mock, patch
+from conda_vendor.custom_manifest import IBManifest
 
 
 def test_create_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
@@ -47,8 +51,8 @@ def test_create_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environ
 
 
 def test_create_local_channels_from_meta_manifest(
-   tmp_path, minimal_conda_forge_environment
-):  
+    tmp_path, minimal_conda_forge_environment
+):
     test_env_name = "the_test_env"
     test_manifest_filename = "test_metamanifest.yaml"
     channel_root = tmp_path
@@ -59,13 +63,16 @@ def test_create_local_channels_from_meta_manifest(
         minimal_conda_forge_environment, tmp_path, test_manifest_filename
     )
 
-    create_yaml_from_manifest(channel_root=tmp_path , meta_manifest_path=test_manifest_path, env_name=test_env_name)
+    create_yaml_from_manifest(
+        channel_root=tmp_path,
+        meta_manifest_path=test_manifest_path,
+        env_name=test_env_name,
+    )
 
-    create_local_channels_from_meta_manifest(channel_root=tmp_path, meta_manifest_path=test_manifest_path)
+    create_local_channels_from_meta_manifest(
+        channel_root=tmp_path, meta_manifest_path=test_manifest_path
+    )
 
-    #--------------end setup -------------------------
-    #--------------end setup -------------------------
-    #--------------end setup -------------------------
     try:
         cmd_str_clean = f"conda clean --all -y"
 
@@ -104,3 +111,58 @@ def test_create_local_channels_from_meta_manifest(
 
     assert "Remove all packages in environment" in process_out_rm_env
     assert test_env_name in process_out_rm_env
+
+
+# @patch("conda_vendor.custom_manifest.IBManifest")
+# def test_create_ironbank_from_meta_manifest(
+#     mock_my_class, tmp_path, get_path_location_for_manifest_fixture
+# ):
+
+#     # Arrange
+#     mc = mock_my_class.return_value = Mock(IBManifest)
+#     mc.write_custom_manifest.return_value = True
+
+#     meta_manifest_path = get_path_location_for_manifest_fixture
+#     output_manifest_dir = tmp_path
+#     create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
+#     mc.assert_called_once_with(meta_manifest_path)
+#     mc.write_custom_manifest.assert_called_once_with(output_manifest_dir)
+#     assert 0
+
+
+def test_create_ironbank_from_meta_manifest(
+    mocker, tmp_path, get_path_location_for_manifest_fixture
+):
+
+    mocker.patch(
+        "conda_vendor.custom_manifest.IBManifest.write_custom_manifest",
+        return_value="foobar",
+    )
+    mocker.patch("conda_vendor.custom_manifest.IBManifest.__init__", return_value=None)
+
+    from conda_vendor.custom_manifest import IBManifest
+
+    spy1 = mocker.spy(IBManifest, "__init__")
+    spy2 = mocker.spy(IBManifest, "write_custom_manifest")
+
+    meta_manifest_path = get_path_location_for_manifest_fixture
+    output_manifest_dir = tmp_path
+
+    create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
+
+    spy1.assert_called_once_with(meta_manifest_path)
+    spy2.assert_called_once_with(output_manifest_dir)
+
+
+@patch("conda_vendor.custom_manifest.IBManifest.__init__")
+@patch("conda_vendor.custom_manifest.IBManifest.write_custom_manifest")
+def test_create_ironbank_from_meta_manifest2(
+    mock_c, mock_i, tmp_path, get_path_location_for_manifest_fixture
+):
+    mock_i.return_value = None
+    meta_manifest_path = get_path_location_for_manifest_fixture
+    output_manifest_dir = tmp_path
+
+    create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
+    mock_c.assert_called_once_with(output_manifest_dir)
+    mock_i.assert_called_once_with(meta_manifest_path)

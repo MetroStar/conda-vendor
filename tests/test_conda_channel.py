@@ -71,7 +71,11 @@ def test_CondaChannel_fetch_and_filter_repodata(mock_download, conda_channel_fix
 
     fake_manifest_subset_metadata = {
         "repodata_url": "https://url1",
-        "entries": [{"fn": "file1"}, {"fn": "file2"}, {"fn": "file3"},],
+        "entries": [
+            {"fn": "file1"},
+            {"fn": "file2"},
+            {"fn": "file3"},
+        ],
     }
     fake_live_repo_data_json = {
         "info": {"subdir": "fake_subdir"},
@@ -94,7 +98,10 @@ def test_CondaChannel_fetch_and_filter_repodata(mock_download, conda_channel_fix
 
     expected = {
         "info": {"subdir": "fake_subdir"},
-        "packages": {"file1": {"id": 1}, "file2": {"id": 3},},
+        "packages": {
+            "file1": {"id": 1},
+            "file2": {"id": 3},
+        },
         "packages.conda": {"file3": {"id": 5}},
     }
     expected_mock_call = call("https://url1")
@@ -123,9 +130,7 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
         call(
             f"{platform}",
             {
-                "repodata_url": 
-                    f"https://conda.anaconda.org/main/{platform}/repodata.json"
-                ,
+                "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
                 "entries": [
                     {
                         "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
@@ -142,9 +147,7 @@ def test_CondaChannel_get_all_repo_data(mock, conda_channel_fixture):
         call(
             "noarch",
             {
-                "repodata_url": 
-                    "https://conda.anaconda.org/conda-forge/noarch/repodata.json"
-                ,
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
                 "entries": [
                     {
                         "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",

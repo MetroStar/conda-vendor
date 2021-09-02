@@ -7,7 +7,7 @@ dependencies:
   - conda-lock
   - pip
   - pytest
-  - jake
+  - pytest-mock
   - xmltodict
   - jupyterlab
   - pip:

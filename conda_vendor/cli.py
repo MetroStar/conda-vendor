@@ -34,5 +34,3 @@ def create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir):
 def create_yaml_from_manifest(channel_root, meta_manifest_path, env_name):
     george_forge = YamlFromManifest(channel_root, meta_manifest_path=meta_manifest_path)
     george_forge.create_yaml(channel_root, env_name)
-    
-    
