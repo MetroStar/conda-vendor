@@ -170,7 +170,7 @@ def test_get_manifest(meta_manifest_fixture):
 def test_get_manifest_filename(meta_manifest_fixture):
     test_manifest_fixture = meta_manifest_fixture
 
-    expected_default_filename = "vendor_manifest.yaml"
+    expected_default_filename = "meta_manifest.yaml"
     actual_default_filename = test_manifest_fixture.get_manifest_filename()
 
     expected_custom_filename = "woah-johnny.yaml"
@@ -217,7 +217,7 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
             f"{platform}": {"repodata_url": None, "entries": []},
         },
     }
-    expected_path = tmp_path / "vendor_manifest.yaml"
+    expected_path = tmp_path / "meta_manifest.yaml"
     test_manifest_fixture.manifest = expected_manifest
     test_manifest_fixture.create_manifest()
 

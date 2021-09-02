@@ -12,9 +12,9 @@ from pathlib import Path
 
 
 def create_meta_manifest_from_env_yml(
-    environment_yml, manifest_root, manifest_filename
+    environment_yaml, manifest_root, manifest_filename
 ):
-    conda_channel = MetaManifest(environment_yml, manifest_root=manifest_root)
+    conda_channel = MetaManifest(environment_yaml, manifest_root=manifest_root)
     conda_channel.create_manifest(manifest_filename=manifest_filename)
 
 

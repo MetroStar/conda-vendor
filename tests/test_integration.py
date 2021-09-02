@@ -1,6 +1,4 @@
-import re
 from conda_vendor.cli import (
-    create_ironbank_from_meta_manifest2,
     create_ironbank_from_meta_manifest,
     create_local_channels_from_meta_manifest,
     create_meta_manifest_from_env_yml,
@@ -113,50 +111,9 @@ def test_create_local_channels_from_meta_manifest(
     assert test_env_name in process_out_rm_env
 
 
-# @patch("conda_vendor.custom_manifest.IBManifest")
-# def test_create_ironbank_from_meta_manifest(
-#     mock_my_class, tmp_path, get_path_location_for_manifest_fixture
-# ):
-
-#     # Arrange
-#     mc = mock_my_class.return_value = Mock(IBManifest)
-#     mc.write_custom_manifest.return_value = True
-
-#     meta_manifest_path = get_path_location_for_manifest_fixture
-#     output_manifest_dir = tmp_path
-#     create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
-#     mc.assert_called_once_with(meta_manifest_path)
-#     mc.write_custom_manifest.assert_called_once_with(output_manifest_dir)
-#     assert 0
-
-
-def test_create_ironbank_from_meta_manifest(
-    mocker, tmp_path, get_path_location_for_manifest_fixture
-):
-
-    mocker.patch(
-        "conda_vendor.custom_manifest.IBManifest.write_custom_manifest",
-        return_value="foobar",
-    )
-    mocker.patch("conda_vendor.custom_manifest.IBManifest.__init__", return_value=None)
-
-    from conda_vendor.custom_manifest import IBManifest
-
-    spy1 = mocker.spy(IBManifest, "__init__")
-    spy2 = mocker.spy(IBManifest, "write_custom_manifest")
-
-    meta_manifest_path = get_path_location_for_manifest_fixture
-    output_manifest_dir = tmp_path
-
-    create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
-
-    spy1.assert_called_once_with(meta_manifest_path)
-    spy2.assert_called_once_with(output_manifest_dir)
-
-
 @patch("conda_vendor.custom_manifest.IBManifest.__init__")
 @patch("conda_vendor.custom_manifest.IBManifest.write_custom_manifest")
-def test_create_ironbank_from_meta_manifest2(
+def test_create_ironbank_from_meta_manifest(
     mock_c, mock_i, tmp_path, get_path_location_for_manifest_fixture
 ):
     mock_i.return_value = None
@@ -166,3 +123,20 @@ def test_create_ironbank_from_meta_manifest2(
     create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
     mock_c.assert_called_once_with(output_manifest_dir)
     mock_i.assert_called_once_with(meta_manifest_path)
+
+
+@patch("conda_vendor.env_yaml_from_manifest.YamlFromManifest.__init__")
+@patch("conda_vendor.env_yaml_from_manifest.YamlFromManifest.create_yaml")
+def test_create_yaml_from_manifest(
+    mock_c, mock_i, tmp_path, get_path_location_for_manifest_fixture
+):
+    mock_i.return_value = None
+
+    meta_manifest_path = get_path_location_for_manifest_fixture
+    channel_root = tmp_path
+
+    env_name = "forgin-georgin"
+    create_yaml_from_manifest(channel_root, meta_manifest_path, env_name)
+
+    mock_c.assert_called_once_with(channel_root, env_name)
+    mock_i.assert_called_once_with(channel_root, meta_manifest_path=meta_manifest_path)

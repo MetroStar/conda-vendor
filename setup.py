@@ -9,7 +9,7 @@ setup(
     version="0.1",
     package_dir={"": "."},
     packages=find_packages(exclude=("tests",), where="."),
-    entry_points={"console_scripts": ["conda-vendor = conda_vendor.__main__:main"]},
+    entry_points={"console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]},
     install_requires=["pyyaml"],
     setup_requires=["wheel"],
     python_requires=">=3.8",

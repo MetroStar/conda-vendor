@@ -73,7 +73,7 @@ class MetaManifest:
 
     def get_manifest_filename(self, manifest_filename=None):
         if manifest_filename is None:
-            manifest_filename = "vendor_manifest.yaml"
+            manifest_filename = "meta_manifest.yaml"
         return manifest_filename
 
     def create_manifest(self, *, manifest_filename=None):
@@ -121,7 +121,7 @@ class MetaManifest:
     def get_purl(self, fetch_entry):
         """
         Returns package url format based on item in fetch data
-        see: https://github.com/package-url/purl-spec 
+        see: https://github.com/package-url/purl-spec
         """
         return f"pkg:conda/{fetch_entry['name']}@{fetch_entry['version']}?url={fetch_entry['url']}"
 
