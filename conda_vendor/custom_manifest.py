@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 import os
 from pathlib import Path
 import yaml
+import logging
 
-
-# eats a meta_manifest shits custom one
+logging.basicConfig(level=logging.INFO)
 
 
 class CustomManifest(ABC):
@@ -13,6 +13,7 @@ class CustomManifest(ABC):
         self.manifest_root = self.manifest_path.parent
         self.custom_manifest = None
         self.meta_manifest = self.read_meta_manifest(self.manifest_path)
+        logging.info(f"Input Manifest : {str(self.manifest_path.absolute())}")
 
     def read_meta_manifest(self, manifest_path):
         with open(self.manifest_path) as f:
@@ -36,6 +37,7 @@ class IBManifest(CustomManifest):
             self.custom_manifest = self.format_custom_manifest()
 
         output_file_dir = output_file_dir / "ironbank_manifest.yaml"
+        logging.info(f"Output Custom Manifest : {str(output_file_dir.absolute())}")
         with open(output_file_dir, "w") as f:
             yaml.dump(self.custom_manifest, f, sort_keys=False)
 
