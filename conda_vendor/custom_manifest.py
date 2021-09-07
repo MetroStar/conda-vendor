@@ -29,16 +29,14 @@ class CustomManifest(ABC):
 
 
 class IBManifest(CustomManifest):
-    def write_custom_manifest(self, output_file_dir=None):
-        if output_file_dir is None:
-            output_file_dir = self.manifest_root
+    def write_custom_manifest(self, output_file_path=None):
+        if output_file_path is None:
+            output_file_path = self.manifest_root / "ironbank_manifest.yaml"
 
-        if self.custom_manifest is None:
-            self.custom_manifest = self.format_custom_manifest()
+        self.format_custom_manifest()
 
-        output_file_dir = output_file_dir / "ironbank_manifest.yaml"
-        logging.info(f"Output Custom Manifest : {str(output_file_dir.absolute())}")
-        with open(output_file_dir, "w") as f:
+        logging.info(f"Output Custom Manifest : {str(output_file_path.absolute())}")
+        with open(output_file_path, "w") as f:
             yaml.dump(self.custom_manifest, f, sort_keys=False)
 
     @staticmethod
@@ -49,6 +47,9 @@ class IBManifest(CustomManifest):
             return in_str
 
     def format_custom_manifest(self):
+        if self.custom_manifest is not None:
+            return self.custom_manifest
+
         i_bank_pkg_list = []
 
         for _, channel_dict in self.meta_manifest.items():
@@ -66,5 +67,5 @@ class IBManifest(CustomManifest):
                     }
                     i_bank_pkg_list.append(i_bank_entry)
         iron_bank_manifest = {"resources": i_bank_pkg_list}
-
+        self.custom_manifest = iron_bank_manifest
         return iron_bank_manifest

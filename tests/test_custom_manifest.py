@@ -1,6 +1,7 @@
 import yaml
 from conda_vendor.custom_manifest import IBManifest, CustomManifest
 from unittest.mock import Mock, patch, call, mock_open
+from unittest import TestCase
 
 # "mymethod" in dir(dyn)
 
@@ -25,19 +26,17 @@ def test_load_manifest(mock, tmp_path):
 @patch("conda_vendor.custom_manifest.CustomManifest.read_meta_manifest")
 def test_write_custom_manifest(mock_read_meta_manifest, tmp_path):
     mock_read_meta_manifest.return_value = None
-    c = IBManifest(manifest_path=tmp_path)
+    custom_channel = IBManifest(manifest_path=tmp_path)
 
     test_custom_manifest = {"foomanchu": True}
-    c.custom_manifest = test_custom_manifest
+    custom_channel.custom_manifest = test_custom_manifest
 
     expected_custom_manifest = test_custom_manifest
 
-    test_output_directory = tmp_path
-    expected_custom_manifest_destination = (
-        test_output_directory / "ironbank_manifest.yaml"
-    )
+    test_output_path = tmp_path / "ironbank_manifest.yaml"
+    expected_custom_manifest_destination = test_output_path
 
-    c.write_custom_manifest(test_output_directory)
+    custom_channel.write_custom_manifest(test_output_path)
     with open(expected_custom_manifest_destination, "r") as f:
         actual_custom_manifest = yaml.load(f, Loader=yaml.SafeLoader)
 
@@ -107,4 +106,15 @@ def test_format_custom_manifest(mock):
 
     c = IBManifest()
     actual_manifest = c.format_custom_manifest()
-    assert actual_manifest == expected_iron_bank_manifest
+    TestCase().assertDictEqual(actual_manifest, expected_iron_bank_manifest)
+
+
+@patch("conda_vendor.custom_manifest.CustomManifest.read_meta_manifest")
+def test_format_custom_manifest_exists(mock, tmp_path):
+    dummy_iron_bank_manifest = {"FOO": "ASWELL"}
+    expected_iron_bank_manifest = dummy_iron_bank_manifest
+
+    c = IBManifest(manifest_path=tmp_path)
+    c.custom_manifest = expected_iron_bank_manifest
+    actual_manifest = c.format_custom_manifest()
+    TestCase().assertDictEqual(actual_manifest, expected_iron_bank_manifest)

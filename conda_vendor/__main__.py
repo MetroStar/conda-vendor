@@ -67,18 +67,18 @@ def create_channels(channel_root, meta_manifest_path):
     help="path to meta manifest file",
 )
 @click.option(
-    "--output-manifest-dir",
+    "--output-manifest-path",
     default="./",
-    help="output manifest dir",
+    help="output manifest path",
 )
-def create_custom_manifest(manifest_type, meta_manifest_path, output_manifest_dir):
+def create_custom_manifest(manifest_type, meta_manifest_path, output_manifest_path):
     meta_manifest_path = Path(meta_manifest_path)
-    output_manifest_dir = Path(output_manifest_dir)
+    output_manifest_path = Path(output_manifest_path)
 
     if manifest_type == "iron-bank":
         create_ironbank_from_meta_manifest(
             meta_manifest_path=meta_manifest_path,
-            output_manifest_dir=output_manifest_dir,
+            output_manifest_dir=output_manifest_path,
         )
     else:
         error_str = f'Manifest type "{manifest_type}" not supported'
