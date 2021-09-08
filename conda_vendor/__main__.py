@@ -5,11 +5,14 @@ from conda_vendor.cli import (
     create_yaml_from_manifest,
 )
 
+
 import click
+from version import __version__
 from pathlib import Path
 
 
 @click.group()
+@click.version_option(__version__)
 def cli():
     pass
 
