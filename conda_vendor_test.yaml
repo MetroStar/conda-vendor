@@ -8,8 +8,6 @@ dependencies:
   - pip
   - pytest
   - pytest-mock
-  - xmltodict
-  - jupyterlab
   - pip:
     - wheel
     - setuptools

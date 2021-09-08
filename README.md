@@ -1,5 +1,8 @@
+# TODO update readme to reflect API change. Note that the below is currently out of date
+
 ## `conda-vendor`
 Tool to create local conda channels and manifests for vendor deployments
+
 
 ### Setup
 All steps run from within `conda-vendor` directory
