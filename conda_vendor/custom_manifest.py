@@ -27,7 +27,6 @@ class CustomManifest(ABC):
     def format_custom_manifest(self):
         pass
 
-
 class IBManifest(CustomManifest):
     def write_custom_manifest(self, output_file_path=None):
         if output_file_path is None:

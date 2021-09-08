@@ -25,7 +25,6 @@ def improved_download(url):
     session.mount("https://", adapter)
     return session.get(url)
 
-
 class CondaChannel:
     def __init__(self, *, channel_root=Path(), meta_manifest_path=None):
 
@@ -144,7 +143,6 @@ class CondaChannel:
             self.download_and_validate(
                 dest_dir / entry["fn"], entry["url"], entry["sha256"]
             )
-
     def download_binaries(self):
         for chan, platform in self.meta_manifest.items():
             for conda_subdir, rest in platform.items():

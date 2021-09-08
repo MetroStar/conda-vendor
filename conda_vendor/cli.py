@@ -1,8 +1,3 @@
-# need function for
-# 1 1env.yml -> meta_manifestmanifest
-# 2 meta_manifest -> channels
-# 3 meta_manifest -> custom manifest
-# 4 meta_manifest -> local_yaml
 
 from conda_vendor.conda_channel import CondaChannel
 from conda_vendor.manifest import MetaManifest
