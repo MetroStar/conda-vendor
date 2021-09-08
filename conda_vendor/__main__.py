@@ -7,7 +7,8 @@ from conda_vendor.cli import (
 
 
 import click
-from version import __version__
+
+from conda_vendor.version import __version__
 from pathlib import Path
 
 
