@@ -5,7 +5,7 @@ Conda Vendor is a tool to create local conda channels and manifests for vendor d
 
 To install with pip, run:
 
-	pip install pip install conda-vendor
+	pip install conda-vendor
 	
 ## Usage
 Conda-vendor has two main steps to create a local channel. First, a meta-manifest file is created as an intermediate artifact. With an existing meta-manifest file, a local conda channel can then be craeted
