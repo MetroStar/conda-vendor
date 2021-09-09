@@ -1,7 +1,9 @@
-import yaml
-from conda_vendor.custom_manifest import IBManifest, CustomManifest
-from unittest.mock import Mock, patch, call, mock_open
 from unittest import TestCase
+from unittest.mock import Mock, call, mock_open, patch
+
+import yaml
+
+from conda_vendor.custom_manifest import CustomManifest, IBManifest
 
 # "mymethod" in dir(dyn)
 

@@ -1,15 +1,14 @@
-from conda_vendor.cli import (
-    create_ironbank_from_meta_manifest,
-    create_local_channels_from_meta_manifest,
-    create_meta_manifest_from_env_yml,
-    create_yaml_from_manifest,
-)
-
-import subprocess
 import os
-import yaml
+import subprocess
 from unittest import TestCase
 from unittest.mock import Mock, patch
+
+import yaml
+
+from conda_vendor.cli import (create_ironbank_from_meta_manifest,
+                              create_local_channels_from_meta_manifest,
+                              create_meta_manifest_from_env_yml,
+                              create_yaml_from_manifest)
 from conda_vendor.custom_manifest import IBManifest
 
 

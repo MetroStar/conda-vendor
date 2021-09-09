@@ -1,5 +1,6 @@
-from setuptools import find_packages, setup
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # TODO: we can make this a conda package and have but that will be on the next iteration.
 # TODO: Some more work can be done on the setup requires but for now use the conda_vendor_test.yml

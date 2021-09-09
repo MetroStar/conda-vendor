@@ -14,6 +14,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, call, mock_open
 from yaml import safe_load
 from yaml.loader import SafeLoader
+import os
 
 
 @patch("struct.calcsize")
@@ -225,3 +226,38 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
         actual_manifest = yaml.load(f, Loader=SafeLoader)
 
     TestCase().assertDictEqual(actual_manifest, expected_manifest)
+
+
+def test_add_pip_question_mark(meta_manifest_fixture):
+    os.environ["CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY"] = "False"
+
+    test_manifest = meta_manifest_fixture
+
+    expected_for_false = False
+    actual_for_false = test_manifest.add_pip_question_mark()
+
+    os.environ["CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY"] = "True"
+    expected_for_true = True
+    actual_for_true = test_manifest.add_pip_question_mark()
+
+    assert expected_for_false == actual_for_false
+    assert expected_for_true == actual_for_true
+
+
+def test_add_pip_dependency(meta_manifest_fixture):
+    mock_env_python = {
+        "name": "blah",
+        "channels": ["chronotrigger"],
+        "dependencies": ["python"],
+    }
+
+    expected_env = {
+        "name": "blah",
+        "channels": ["chronotrigger"],
+        "dependencies": ["python", "pip"],
+    }
+    meta_manifest_fixture.env_deps["environment"] = mock_env_python
+    meta_manifest_fixture.add_pip_dependency()
+    result = meta_manifest_fixture.env_deps["environment"]
+
+    TestCase().assertDictEqual(result, expected_env)

@@ -1,19 +1,18 @@
-from requests.adapters import urldefragauth
-from conda_vendor.manifest import (
-    MetaManifest,
-    LockWrapper,
-)
-import pytest
-from requests import Response
 import hashlib
 import json
+from unittest import TestCase
+from unittest.mock import Mock, call, mock_open, patch
+
+import pytest
 import yaml
 from requests import Response
-from unittest import TestCase
-from unittest.mock import Mock, patch, call, mock_open
+from requests.adapters import urldefragauth
 from yaml import safe_load
 from yaml.loader import SafeLoader
+
 from conda_vendor.conda_channel import CondaChannel, improved_download
+from conda_vendor.manifest import LockWrapper, MetaManifest
+
 from .conftest import mock_response
 
 

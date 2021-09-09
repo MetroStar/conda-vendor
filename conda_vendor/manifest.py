@@ -1,19 +1,18 @@
+import collections
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path
-import requests
 import struct
 import sys
-import yaml
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
-import collections
+from pathlib import Path
 
+import requests
+import yaml
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 logging.basicConfig(level=logging.INFO)
 
@@ -70,6 +69,28 @@ class MetaManifest:
         ]
         if "defaults" in self.channels:
             raise RuntimeError("default channels are not supported.")
+
+        self.add_pip_dependency()
+
+    def add_pip_question_mark(self):
+        """
+        Adds Pip as a dependency of python is in the environment and the environment variable
+        CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY=False is not set
+        """
+        if os.environ.get("CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY", None) == "False":
+            add_pip_dependency = False
+        else:
+            add_pip_dependency = True
+
+        return add_pip_dependency
+
+    def add_pip_dependency(self):
+        add_pip_dependency = self.add_pip_question_mark()
+        dependencies = self.env_deps["environment"]["dependencies"].copy()
+        has_python = "python" in "".join(dependencies)
+
+        if add_pip_dependency is True and has_python:
+            self.env_deps["environment"]["dependencies"].append("pip")
 
     def get_manifest_filename(self, manifest_filename=None):
         if manifest_filename is None:
