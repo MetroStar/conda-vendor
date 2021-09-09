@@ -1,5 +1,6 @@
-from setuptools import find_packages, setup
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # TODO: we can make this a conda package and have but that will be on the next iteration.
 # TODO: Some more work can be done on the setup requires but for now use the conda_vendor_test.yml
@@ -18,5 +19,5 @@ setup(
     entry_points={"console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]},
     install_requires=["pyyaml","conda-lock"],
     setup_requires=["wheel"],
-    python_requires=">=3.9",
+    python_requires=">=3.8",
 )

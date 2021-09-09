@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
-import os
-from pathlib import Path
-import yaml
 import logging
+import os
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+import yaml
 
 logging.basicConfig(level=logging.INFO)
 

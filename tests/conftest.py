@@ -1,10 +1,12 @@
+import struct
+import sys
+from unittest.mock import Mock
+
 import pytest
+import yaml
+
 from conda_vendor.conda_channel import CondaChannel
 from conda_vendor.manifest import MetaManifest
-from unittest.mock import Mock
-import sys
-import struct
-import yaml
 
 
 def get_conda_platform(platform=sys.platform):

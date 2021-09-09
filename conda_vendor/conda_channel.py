@@ -2,17 +2,16 @@ import hashlib
 import json
 import logging
 import os
-from pathlib import Path
-import requests
 import struct
 import sys
-import yaml
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from pathlib import Path
 
+import requests
+import yaml
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 logging.basicConfig(level=logging.INFO)
 

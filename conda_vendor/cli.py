@@ -1,9 +1,10 @@
 
+from pathlib import Path
+
 from conda_vendor.conda_channel import CondaChannel
-from conda_vendor.manifest import MetaManifest
 from conda_vendor.custom_manifest import IBManifest
 from conda_vendor.env_yaml_from_manifest import YamlFromManifest
-from pathlib import Path
+from conda_vendor.manifest import MetaManifest
 
 
 def create_meta_manifest_from_env_yml(

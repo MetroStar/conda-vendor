@@ -1,10 +1,12 @@
 # TODO: Utils ? like load so we don't duplicate code ?
-from conda_vendor.env_yaml_from_manifest import YamlFromManifest
-import pytest
-from unittest.mock import patch
 from unittest import TestCase
+from unittest.mock import patch
+
+import pytest
 import yaml
 from yaml import SafeLoader
+
+from conda_vendor.env_yaml_from_manifest import YamlFromManifest
 
 
 @pytest.fixture
