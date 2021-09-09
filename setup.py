@@ -19,5 +19,5 @@ setup(
     entry_points={"console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]},
     install_requires=["pyyaml","conda-lock"],
     setup_requires=["wheel"],
-    python_requires=">=3.8",
+    python_requires=">=3.6",
 )
