@@ -1,13 +1,18 @@
 # Conda-Vendor
 
-Conda Vendor is a tool to create local conda channels and manifests for vendored deployments
+Conda Vendor is a tool to create local conda channels and manifests based on an input conda environment yaml file. This tool is particularly useful when trying to use conda packages inside an air-gapped network.
+
+The tool works by intaking a [conda environment yaml file](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually) and performing a conda solve to determine what packages are needed. A "meta-manifest" file is then generated which contains metadata about all of the packages and their dependencies from the input environment yaml file. Conda-vendor can then use this meta-manifest file for two purposes. The first is to create local conda channels which will allow use of the environment yaml file offline. This is the same concept as [mirroring a channel](https://docs.anaconda.com/anaconda-repository/admin-guide/install/config/mirrors/mirror-anaconda-repository/) except only the required packages will be downloaded locally. This vastly descreases the size of the resulting mirrored channel.
+
+The second is to create custom manifest files in order to satisfy security organizations' requirements. These files contain the package name, download URL, and sha256 hash of all packages and dependencies from the input conda environment file. Currently Iron Bank is the only format supported, but others can be easily added by modifying [this file](https://github.com/MetroStar/conda-vendor/blob/main/conda_vendor/custom_manifest.py).
 
 ## Installation
 
 To install with pip, run:
 
 	pip install conda-vendor
-	
+
+
 ## Usage
 
 Conda-vendor has two main steps to create a local channel. First, a meta-manifest file is created as an intermediate artifact. With an existing meta-manifest file, a local conda channel can then be created.
@@ -18,7 +23,8 @@ The intermediate meta-manifest is generated to allow for the creation of custom 
 
 Conda-vendor solves an environment with conda from an `environment.yaml` and determines all the packages that are required. The metadata for these required packages is stored in a file called `meta_manifest.yaml`. To create this file, run:
 
-	conda vendor create-meta-manifest --environment-yaml environment.yaml
+	conda vendor create-meta-manifes
+	t --environment-yaml environment.yaml
 		
 The above command will output a `meta_manifest.yaml` file in the current directory. 
 
