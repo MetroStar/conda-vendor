@@ -43,7 +43,7 @@ def cli():
 )
 @click.option(
     "--manifest-filename",
-    "m",
+    "-m",
     default="meta_manifest.yaml",
     help="filename of output manifest",
 )
@@ -91,9 +91,7 @@ def create_channels(verbose, channel_root, meta_manifest_path):
     help="path to meta manifest file",
 )
 @click.option(
-    "--output-manifest-path",
-    default="./",
-    help="output manifest path",
+    "--output-manifest-path", default="./", help="output manifest path",
 )
 def create_custom_manifest(
     verbose, manifest_type, meta_manifest_path, output_manifest_path
