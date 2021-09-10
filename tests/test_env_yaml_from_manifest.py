@@ -35,8 +35,6 @@ def test_get_local_channels_paths(tmp_path, yml_man_fixture):
     test_channel_names = ["local_conda-forge", "local_main"]
     expected_channels = [str(tmp_path / c) for c in test_channel_names]
     result_channels = yml_man_fixture.get_local_channels_paths(tmp_path)
-    print(expected_channels)
-    print(result_channels)
     TestCase().assertCountEqual(expected_channels, result_channels)
 
 

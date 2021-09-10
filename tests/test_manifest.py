@@ -36,7 +36,6 @@ def test_LockWrapper_init():
 def test_LockWrapper_parse(mock):
     test_args = ["dummy_path.yaml", "dummy-64"]
     LockWrapper.parse(*test_args)
-    print(mock.call_args)
     mock.assert_called_once_with("dummy_path.yaml", "dummy-64")
 
 
@@ -51,7 +50,7 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
         "environment": {
             "name": "minimal_env",
             "channels": ["main"],
-            "dependencies": ["python=3.9.5"],
+            "dependencies": ["python=3.9.5", "pip"],
         },
     }
 
@@ -162,8 +161,6 @@ def test_get_manifest(meta_manifest_fixture):
     }
 
     actual_manifest = meta_manifest_fixture.get_manifest()
-    print("actual_manifest", actual_manifest)
-    print("result", meta_manifest_fixture.get_manifest())
     TestCase().maxDiff = None
     TestCase().assertDictEqual(expected_manifest, actual_manifest)
 

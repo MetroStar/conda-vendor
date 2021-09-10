@@ -14,7 +14,8 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+# logging.setLevel("INFO")
 
 
 class LockWrapper:
@@ -44,7 +45,7 @@ def get_conda_platform(platform=sys.platform):
 class MetaManifest:
     def __init__(self, environment_yml, *, manifest_root=Path()):
         self.manifest_root = Path(manifest_root)
-        logging.info(f"manifest_root : {self.manifest_root.absolute()}")
+        logger.info(f"manifest_root : {self.manifest_root.absolute()}")
         self.platform = get_conda_platform()
 
         self.valid_platforms = [self.platform, "noarch"]
@@ -52,13 +53,13 @@ class MetaManifest:
         # create from envirenment yaml
         self.manifest = None
         parse_return = LockWrapper.parse(environment_yml, self.platform)
-        print(f"{parse_return=}")
+
         self.env_deps = {
             "specs": parse_return.specs,
             "channels": parse_return.channels,
         }
 
-        logging.info(f"Using Environment :{environment_yml}")
+        logger.info(f"Using Environment :{environment_yml}")
         with open(environment_yml) as f:
             self.env_deps["environment"] = yaml.load(f, Loader=yaml.SafeLoader)
         bad_channels = ["nodefaults"]
@@ -106,7 +107,7 @@ class MetaManifest:
 
         cleaned_name = Path(manifest_filename).name
         outpath_file_name = self.manifest_root / cleaned_name
-        logging.info(f"Creating Manifest {outpath_file_name.absolute()}")
+        logger.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
             yaml.dump(manifest, f, sort_keys=False)
         return manifest
@@ -126,7 +127,6 @@ class MetaManifest:
                 d[chan][self.platform] = {"repodata_url": None, "entries": []}
 
             for entry in fetch_actions:
-                print(entry)
                 (channel, platform) = entry["channel"].split("/")[-2:]
 
                 d[channel][platform][
@@ -148,8 +148,8 @@ class MetaManifest:
 
     def solve_environment(self):
         if "solution" not in self.env_deps:
-            logging.info(
-                f"Solving ENV | Channels : {self.env_deps['channels']} | specs : {self.env_deps['specs']} , platform : {self.platform}"
+            logger.info(
+                f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['specs']} \nplatform : {self.platform}"
             )
             solution = LockWrapper.solve(
                 "conda",
@@ -158,4 +158,6 @@ class MetaManifest:
                 platform=self.platform,
             )
             self.env_deps["solution"] = solution
+
+        logger.debug(f'Fetch results: {self.env_deps["solution"]["actions"]["FETCH"]}')
         return self.env_deps["solution"]["actions"]["FETCH"]
