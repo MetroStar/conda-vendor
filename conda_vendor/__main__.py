@@ -94,7 +94,7 @@ def create_channels(verbose, channel_root, meta_manifest_path):
     "--output-manifest-path", default="./", help="output manifest path",
 )
 def create_custom_manifest(
-    verbose, manifest_type, meta_manifest_path, output_manifest_path,
+    verbose, manifest_type, meta_manifest_path, output_manifest_path
 ):
     set_logging_verbosity(verbose)
     meta_manifest_path = Path(meta_manifest_path)
