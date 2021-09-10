@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from conda_vendor.conda_channel import CondaChannel

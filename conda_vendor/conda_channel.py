@@ -13,7 +13,7 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def improved_download(url):
@@ -24,11 +24,12 @@ def improved_download(url):
     session.mount("https://", adapter)
     return session.get(url)
 
+
 class CondaChannel:
     def __init__(self, *, channel_root=Path(), meta_manifest_path=None):
 
         self.channel_root = Path(channel_root)
-        logging.info(f"channel_root : {self.channel_root.absolute()}")
+        logger.info(f"channel_root : {self.channel_root.absolute()}")
         self.meta_manifest = self.load_manifest(meta_manifest_path)
         self.channels = list(self.meta_manifest.keys())
         self.all_repo_data = None
@@ -51,7 +52,7 @@ class CondaChannel:
         valid_names = [entry["fn"] for entry in manifest_subset_metadata["entries"]]
 
         repo_data_url = manifest_subset_metadata["repodata_url"]
-        logging.info(
+        logger.info(
             f"fetching repo data from :{repo_data_url} to subdir : {conda_subdir}"
         )
         live_repo_data_json = improved_download(repo_data_url).json()
@@ -102,7 +103,7 @@ class CondaChannel:
     def make_local_dir(self, chan, subdir):
         dest_dir = self.local_dir(chan, subdir)
         dest_dir.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Making directory {dest_dir.absolute()} ")
+        logger.info(f"Making directory {dest_dir.absolute()} ")
         return dest_dir
 
     def write_arch_repo_data(self, chan, subdir, repo_data):
@@ -123,7 +124,7 @@ class CondaChannel:
 
     @staticmethod
     def download_and_validate(out: Path, url, sha256):
-        logging.info(f"downloading {url} to {out}")
+        logger.debug(f"downloading {url} to {out}")
         response = improved_download(url)
         url_data = response.content
         with open(out, "wb") as f:
@@ -142,7 +143,12 @@ class CondaChannel:
             self.download_and_validate(
                 dest_dir / entry["fn"], entry["url"], entry["sha256"]
             )
+
     def download_binaries(self):
+        logger.info(
+            "Creating directories and downloading packages locally. This may take a few minutes."
+        )
+
         for chan, platform in self.meta_manifest.items():
             for conda_subdir, rest in platform.items():
                 self.download_arch_binaries(chan, conda_subdir, rest["entries"])

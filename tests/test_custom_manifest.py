@@ -64,7 +64,7 @@ def test_format_custom_manifest(mock):
                 "entries": [
                     {
                         "url": f"https://conda.anaconda.org/main/linux-64/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
-                        "name": "brotlipy",
+                        "fn": "brotlipy",
                         "version": "0.7.0",
                         "channel": f"https://conda.anaconda.org/main/linux-64",
                         "sha256": "omega_yoyo",
@@ -78,7 +78,7 @@ def test_format_custom_manifest(mock):
                 "entries": [
                     {
                         "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
-                        "name": "ensureconda",
+                        "fn": "ensureconda",
                         "version": "1.4.1",
                         "channel": "https://conda.anaconda.org/conda-forge/noarch",
                         "sha256": "yoyo",

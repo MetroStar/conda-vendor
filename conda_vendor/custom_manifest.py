@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class CustomManifest(ABC):
@@ -14,7 +14,7 @@ class CustomManifest(ABC):
         self.manifest_root = self.manifest_path.parent
         self.custom_manifest = None
         self.meta_manifest = self.read_meta_manifest(self.manifest_path)
-        logging.info(f"Input Manifest : {str(self.manifest_path.absolute())}")
+        logger.info(f"Input Manifest : {str(self.manifest_path.absolute())}")
 
     def read_meta_manifest(self, manifest_path):
         with open(self.manifest_path) as f:
@@ -28,6 +28,7 @@ class CustomManifest(ABC):
     def format_custom_manifest(self):
         pass
 
+
 class IBManifest(CustomManifest):
     def write_custom_manifest(self, output_file_path=None):
         if output_file_path is None:
@@ -35,7 +36,7 @@ class IBManifest(CustomManifest):
 
         self.format_custom_manifest()
 
-        logging.info(f"Output Custom Manifest : {str(output_file_path.absolute())}")
+        logger.info(f"Output Custom Manifest : {str(output_file_path.absolute())}")
         with open(output_file_path, "w") as f:
             yaml.dump(self.custom_manifest, f, sort_keys=False)
 
@@ -55,7 +56,7 @@ class IBManifest(CustomManifest):
         for _, channel_dict in self.meta_manifest.items():
             for _, platform_dict in channel_dict.items():
                 for package_dict in platform_dict["entries"]:
-                    name = IBManifest.strip_lead_underscore(package_dict["name"])
+                    name = IBManifest.strip_lead_underscore(package_dict["fn"])
 
                     i_bank_entry = {
                         "url": package_dict["url"],
