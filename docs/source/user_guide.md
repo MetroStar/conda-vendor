@@ -1,105 +1,65 @@
 # Project Description
-Conda Vendor is a tool to create local conda channels based on a [conda environment yaml file](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually). The created local channel will only contain the packages that are required when the yaml file installs. This is the same concept as [mirroring a channel](https://docs.anaconda.com/anaconda-repository/admin-guide/install/config/mirrors/mirror-anaconda-repository/) except only the required packages will be downloaded locally. This vastly descreases the size of the resulting mirrored channel.
 
-Conda Vendor also creates software version manifests based on a conda environment configuration file. These files contain the package name, download URL, and sha256 hash of all packages and dependencies from the input conda environment file.
+Conda Vendor is a tool to create local conda channels and manifests based on an input conda environment yaml file. This tool is particularly useful when trying to use conda packages inside an air-gapped network.
 
-# Setup
-All below steps should be run from within `conda-vendor` directory. This guide assumes that conda is pre-installed and configured.
+The tool works by intaking a [conda environment yaml file](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually) and performing a conda solve to determine what packages are needed. A "meta-manifest" file is then generated which contains metadata about all of the packages and their dependencies from the input environment yaml file. Conda-vendor can then use this meta-manifest file for two purposes. The first is to create local conda channels which will allow use of the environment yaml file offline. This is the same concept as [mirroring a channel](https://docs.anaconda.com/anaconda-repository/admin-guide/install/config/mirrors/mirror-anaconda-repository/) except only the required packages will be downloaded locally. This vastly descreases the size of the resulting mirrored channel.
 
-To create a conda environment with the dependencies for conda vendor:
+The second is to create custom manifest files in order to satisfy security organizations' requirements. These files contain the package name, download URL, and sha256 hash of all packages and dependencies from the input conda environment file. Currently Iron Bank is the only format supported, but others can be easily added by modifying [this file](https://github.com/MetroStar/conda-vendor/blob/main/conda_vendor/custom_manifest.py).
 
-	conda env create -f conda_vendor_test.yaml
 
-Activate the environment 
+## Usage
 
-	conda activate conda_vendor_test_env
+Conda-vendor has two main steps to create a local channel. First, a meta-manifest file is created as an intermediate artifact. With an existing meta-manifest file, a local conda channel can then be created.
 
-### Tests 
-Make sure everything is good to go with
+The intermediate meta-manifest is generated to allow for the creation of custom software manifests. These manifests can then be used obtain package approval from an organization's cybersecurity team.
 
-	pytest -vvv
+### Creating a Meta-manifest
 
-# Usage
-`conda-vendor` solves an environment from an environment.yaml and currently has two main functions:
+Conda-vendor solves an environment with conda from an `environment.yaml` and determines all the packages that are required. The metadata for these required packages is stored in a file called `meta_manifest.yaml`. To create this file, run:
 
-* create a `meta_manifest.yaml` a yaml for CICD
-* Create local channels to resolve an environment offline. 
+	conda vendor create-meta-manifest --environment-yaml environment.yaml
+		
+The above command will output a `meta_manifest.yaml` file in the current directory. 
 
-### Manifest
-To create a manifest run:
-```bash
-	conda-vendor manifest -f your_env.yaml --manifest-filename your_manifest_out.yaml
-```
+### Creating a Local Channel
 
-if no manifest filename is supplied it will default to `meta_manifest.yaml`.
+With a meta-manifest file created, conda-vendor can then create local channels. 
+	
+	conda vendor create-channels --meta-manifest-path ./meta_manifest.yaml
 
-It will looks something like this:
-```
-resources:
-  - url: "https://s3.amazonaws.com/path/to/your/package-1.0.0.tar.gz"
-    filename: "package-1.0.0.tar.gz"
-    validation:
-      type: "sha256"
-      value: "3d6b4cfca92067edd5c860c212ff5153d1e162b8791408bc671900309eb555ec" # must be lowercase
+This will create a directory called `local_channel` that will contain the same number of channels as were listed in the original `environment.yaml` file. These local channels will only contain the packages that are needed to satisfy the solved environment from the `create-meta-manifest` step.
 
-```
-where each entry contains information about a package in your environment.
+### Using the Local channel
 
-### Local channels
-running `conda-vendor local_channels -f your_env_yaml.yaml` will do the following:
-* solve the environment
-* create a `meta_manifest.yaml`
-* create local channels for the channels supplied in `your_env_yaml.yaml`
-* Create a `local_yaml.yaml` with the local channels and packages needed for your env with an environment name that has a `local_` prefixed to the original environment name
+There are several ways to use the local channel. If python was in the input `environment.yaml` file for example, the following could be used:
 
-local_channels also has options for custom paths and names. 
-```
-optional arguments:
-  -h, --help            show this help message and exit
-  --dry-run             local environment filename
-  -f FILE, --file FILE  environment.yaml file
-  --channel-root CHANNEL_ROOT
-                        create local directories here
-  -m MANIFEST_FILENAME, --manifest-filename MANIFEST_FILENAME
-                        write manifest to this file
-  -n NAME, --name NAME  local environment name
-  -e ENVIRONMENT_FILE, --environment-file ENVIRONMENT_FILE
-                        local environment filename
-```
+	conda create -n test_env python -c <path_to_local_channel> --offline
+	
+The `--offline` flag will prevent conda from reaching out to the internet for packages. To verify that the environment created only contains packages contained in the local channel, run the following:
 
-### Create an offline conda environment 
+	conda activate test_env
+	conda list --explicit
+	
+This should show a list of all the packages in the environment the local paths to their source code (typically tar.bz2 files).
 
-	conda env create -f local_yaml.yaml --offline
->if you used a custom name for your local yaml use the name of that file.
+### Creating Environment with all Packages from Input Environment.yaml
 
-### Notes:
-* If you do not have pip as a required package in your yaml you will need to export the flag
-`export CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY=False` 
-* If you have channels `defaults` in your `env.yaml` conda-vendor will throw a runtime error. Please explicitly state the needed channels.
-* Logging is always on :( sorry
-* cli needs tests and has some extra features
+To generate a conda environment yaml that contains all the packages from the input `environment.yaml`, run the following:
 
-# Building a python wheel
-Build your conda-vendor wheel 
+	conda vendor create-local-yaml --meta-manifest-path ./meta_manifest.yaml --channel-root <absolute_path_to_local_channel_dir>
+	
+This will create a environment file inside the `local_channel` directory called `local_conda-vendor-env.yaml`. An environment can then be created with:
 
-	python setup.py bdist_wheel
+	conda env create -f local_channel/local_conda-vendor-env.yaml
+	
+The environment will be created with the packages that are contained in the local channel.
 
-Install the package 
+### Creating a Custom Manifest for Package Security Validation
 
-	pip install dist/conda_vendor-0.1-py3-none-any.whl
+The following functionality is only applicable if there is an organization that requires a list of packages for security validation. Currently the Iron Bank format is supported, but support for other formats can be added to the source code in `custom_manifest.py`.
 
-Make sure it looks good 
+To generate an iron bank manifest from the meta-manifest, run:
 
-	conda-vendor -h
-
-You should see something like 
-```
-conda-vendor creates a local conda environment
-
-positional arguments:
-  {manifest,local_yaml,local_channels}
-                        command options
-    manifest            mainifest commands
-    local_yaml          local yaml commands
-    local_channels      local channel commands
-```
+	conda vendor create-custom-manifest --meta-manifest-path ./meta-manifest.yaml --output-manifest-path ./custom_manifest.yaml
+	
+This will output a manifest file in the Iron Bank format.
