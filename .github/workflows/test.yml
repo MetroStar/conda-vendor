@@ -1,16 +1,7 @@
 name: "Tests"
 
 on:
-  pull_request: # Workflow only runs for PR against main anyway
-  push:
-    branches:
-      - '**'
-    tags:
-      - 'v*'
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
-
+  pull_request: # Workflow only runs for PR against main
 
 jobs:
   test-general:
