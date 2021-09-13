@@ -258,3 +258,5 @@ def test_add_pip_dependency(meta_manifest_fixture):
     result = meta_manifest_fixture.env_deps["environment"]
 
     TestCase().assertDictEqual(result, expected_env)
+
+
