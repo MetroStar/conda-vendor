@@ -1,0 +1,36 @@
+name: "Tests"
+
+on:
+  pull_request: # Workflow only runs for PR against main anyway
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+
+jobs:
+  test-general:
+    name: 'Test Package'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    steps:
+      - name: 'Checkout Infrastructure'
+        uses: actions/checkout@main
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install conda-vendor
+        run: |
+          pip install .
+      - name: Install and run pytest
+        run: |
+          pip install pytest
+          pytest -vvv
