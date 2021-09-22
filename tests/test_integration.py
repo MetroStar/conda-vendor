@@ -146,16 +146,15 @@ def test_create_yaml_from_manifest(
 def test_smoke_cli(tmp_path, minimal_environment):
     test_environment_str = str(minimal_environment)
     test_output_metamanifest_root = str(tmp_path)
-    test_metamanifest_path = str(tmp_path / 'meta_manifest.yaml')
+    test_metamanifest_path = str(tmp_path / "meta_manifest.yaml")
     test_output_channel_root = str(tmp_path / "local_channel")
-    
+
     cmd_str_clean = f"conda vendor create-meta-manifest --environment-yaml {test_environment_str} --manifest-root {test_output_metamanifest_root}"
-    subprocess.check_output(
-            cmd_str_clean, stderr=subprocess.STDOUT, shell=True
-        ).decode("utf-8")
+    subprocess.check_output(cmd_str_clean, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )
     cmd_str_clean = f"conda vendor create-channels --channel-root {test_output_channel_root} --meta-manifest-path {test_metamanifest_path} -v"
 
-    subprocess.check_output(
-            cmd_str_clean, stderr=subprocess.STDOUT, shell=True
-        ).decode("utf-8")
-    
+    subprocess.check_output(cmd_str_clean, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )

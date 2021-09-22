@@ -47,7 +47,26 @@ def cli():
     default="meta_manifest.yaml",
     help="filename of output manifest",
 )
-def create_meta_manifest(verbose, environment_yaml, manifest_root, manifest_filename):
+@click.option(
+    "--custom-platform",
+    "-c",
+    default=None,
+    help="Specify an alternate platform to use for the conda solve. Supported options: ['linux', 'windows', 'osx']",
+)
+@click.option(
+    "--custom-platform-bits",
+    "-cb",
+    default=None,
+    help="Only required if using 'custom-platform'. Specify the bit architecture of the custom system. 32 and 64 are the allowed values.",
+)
+def create_meta_manifest(
+    verbose,
+    environment_yaml,
+    manifest_root,
+    manifest_filename,
+    custom_platform,
+    custom_platform_bits,
+):
     set_logging_verbosity(verbose)
     click.echo(manifest_root)
     click.echo(manifest_filename)
@@ -55,7 +74,11 @@ def create_meta_manifest(verbose, environment_yaml, manifest_root, manifest_file
     manifest_root = Path(manifest_root)
 
     create_meta_manifest_from_env_yml(
-        environment_yaml, manifest_root, manifest_filename
+        environment_yaml,
+        manifest_root,
+        manifest_filename,
+        custom_platform,
+        custom_platform_bits,
     )
 
 
@@ -87,11 +110,12 @@ def create_channels(verbose, channel_root, meta_manifest_path):
 )
 @click.option(
     "--meta-manifest-path",
+    "-m",
     default="./meta_manifest.yaml",
     help="path to meta manifest file",
 )
 @click.option(
-    "--output-manifest-path", default="./", help="output manifest path",
+    "--output-manifest-path", "-o", default="./", help="output manifest path",
 )
 def create_custom_manifest(
     verbose, manifest_type, meta_manifest_path, output_manifest_path
@@ -122,13 +146,15 @@ def create_custom_manifest(
 )
 @click.option(
     "--meta-manifest-path",
+    "-m",
     default="./meta_manifest.yaml",
     help="path to meta manifest file",
 )
 @click.option(
     "--env-name",
+    "-n",
     default="conda-vendor-env",
-    help="name of conda environment defined in yaml",
+    help="name of conda environment to be defined in yaml",
 )
 def create_local_yaml(verbose, channel_root, meta_manifest_path, env_name):
     set_logging_verbosity(verbose)

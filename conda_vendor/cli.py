@@ -7,9 +7,18 @@ from conda_vendor.manifest import MetaManifest
 
 
 def create_meta_manifest_from_env_yml(
-    environment_yaml, manifest_root, manifest_filename
+    environment_yaml,
+    manifest_root,
+    manifest_filename,
+    custom_platform=None,
+    custom_platform_bits=None,
 ):
-    conda_channel = MetaManifest(environment_yaml, manifest_root=manifest_root)
+    conda_channel = MetaManifest(
+        environment_yaml,
+        manifest_root=manifest_root,
+        custom_platform=custom_platform,
+        custom_platform_bits=custom_platform_bits,
+    )
     conda_channel.create_manifest(manifest_filename=manifest_filename)
 
 
