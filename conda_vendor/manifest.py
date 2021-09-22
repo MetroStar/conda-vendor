@@ -28,7 +28,13 @@ class LockWrapper:
 
 
 # see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
-def get_conda_platform(platform=sys.platform):
+def get_conda_platform(
+    platform=sys.platform, custom_platform=None,
+):
+
+    if custom_platform is not None:
+        return custom_platform
+
     _platform_map = {
         "linux2": "linux",
         "linux": "linux",
@@ -42,10 +48,12 @@ def get_conda_platform(platform=sys.platform):
 
 
 class MetaManifest:
-    def __init__(self, environment_yml, *, manifest_root=Path()):
+    def __init__(
+        self, environment_yml, *, manifest_root=Path(), custom_platform=None,
+    ):
         self.manifest_root = Path(manifest_root)
         logger.info(f"manifest_root : {self.manifest_root.absolute()}")
-        self.platform = get_conda_platform()
+        self.platform = get_conda_platform(custom_platform=custom_platform)
 
         self.valid_platforms = [self.platform, "noarch"]
 

@@ -6,15 +6,15 @@ from unittest.mock import Mock, patch
 import yaml
 
 from conda_vendor.cli import (
-    create_ironbank_from_meta_manifest,
-    create_local_channels_from_meta_manifest,
-    create_meta_manifest_from_env_yml,
-    create_yaml_from_manifest,
+    ironbank_from_meta_manifest,
+    local_channels_from_meta_manifest,
+    meta_manifest_from_env_yml,
+    yaml_from_manifest,
 )
 from conda_vendor.custom_manifest import IBManifest
 
 
-def test_create_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
+def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
 
     test_manifest_filename = "test_metamanifest.yaml"
     expected_manifest_path = tmp_path / test_manifest_filename
@@ -35,7 +35,7 @@ def test_create_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environ
                         i_bank_pkg_list.append(dep_entry)
         return i_bank_pkg_list
 
-    create_meta_manifest_from_env_yml(
+    meta_manifest_from_env_yml(
         minimal_conda_forge_environment, tmp_path, test_manifest_filename
     )
     with open(expected_manifest_path) as f:
@@ -49,26 +49,24 @@ def test_create_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environ
     TestCase().assertCountEqual(result_packages, expected_packages)
 
 
-def test_create_local_channels_from_meta_manifest(
-    tmp_path, minimal_conda_forge_environment
-):
+def test_local_channels_from_meta_manifest(tmp_path, minimal_conda_forge_environment):
     test_env_name = "the_test_env"
     test_manifest_filename = "test_metamanifest.yaml"
     channel_root = tmp_path
     test_manifest_path = tmp_path / test_manifest_filename
     path_to_env_yaml = tmp_path / f"local_{test_env_name}.yaml"
 
-    create_meta_manifest_from_env_yml(
+    meta_manifest_from_env_yml(
         minimal_conda_forge_environment, tmp_path, test_manifest_filename
     )
 
-    create_yaml_from_manifest(
+    yaml_from_manifest(
         channel_root=tmp_path,
         meta_manifest_path=test_manifest_path,
         env_name=test_env_name,
     )
 
-    create_local_channels_from_meta_manifest(
+    local_channels_from_meta_manifest(
         channel_root=tmp_path, meta_manifest_path=test_manifest_path
     )
 
@@ -114,21 +112,21 @@ def test_create_local_channels_from_meta_manifest(
 
 @patch("conda_vendor.custom_manifest.IBManifest.__init__")
 @patch("conda_vendor.custom_manifest.IBManifest.write_custom_manifest")
-def test_create_ironbank_from_meta_manifest(
+def test_ironbank_from_meta_manifest(
     mock_c, mock_i, tmp_path, get_path_location_for_manifest_fixture
 ):
     mock_i.return_value = None
     meta_manifest_path = get_path_location_for_manifest_fixture
     output_manifest_dir = tmp_path
 
-    create_ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
+    ironbank_from_meta_manifest(meta_manifest_path, output_manifest_dir)
     mock_c.assert_called_once_with(output_manifest_dir)
     mock_i.assert_called_once_with(meta_manifest_path)
 
 
 @patch("conda_vendor.env_yaml_from_manifest.YamlFromManifest.__init__")
 @patch("conda_vendor.env_yaml_from_manifest.YamlFromManifest.create_yaml")
-def test_create_yaml_from_manifest(
+def test_yaml_from_manifest(
     mock_c, mock_i, tmp_path, get_path_location_for_manifest_fixture
 ):
     mock_i.return_value = None
@@ -137,7 +135,7 @@ def test_create_yaml_from_manifest(
     channel_root = tmp_path
 
     env_name = "forgin-georgin"
-    create_yaml_from_manifest(channel_root, meta_manifest_path, env_name)
+    yaml_from_manifest(channel_root, meta_manifest_path, env_name)
 
     mock_c.assert_called_once_with(channel_root, env_name)
     mock_i.assert_called_once_with(channel_root, meta_manifest_path=meta_manifest_path)
@@ -146,16 +144,15 @@ def test_create_yaml_from_manifest(
 def test_smoke_cli(tmp_path, minimal_environment):
     test_environment_str = str(minimal_environment)
     test_output_metamanifest_root = str(tmp_path)
-    test_metamanifest_path = str(tmp_path / 'meta_manifest.yaml')
+    test_metamanifest_path = str(tmp_path / "meta_manifest.yaml")
     test_output_channel_root = str(tmp_path / "local_channel")
-    
-    cmd_str_clean = f"conda vendor create-meta-manifest --environment-yaml {test_environment_str} --manifest-root {test_output_metamanifest_root}"
-    subprocess.check_output(
-            cmd_str_clean, stderr=subprocess.STDOUT, shell=True
-        ).decode("utf-8")
-    cmd_str_clean = f"conda vendor create-channels --channel-root {test_output_channel_root} --meta-manifest-path {test_metamanifest_path} -v"
 
-    subprocess.check_output(
-            cmd_str_clean, stderr=subprocess.STDOUT, shell=True
-        ).decode("utf-8")
-    
+    cmd_str_clean = f"conda vendor meta-manifest --environment-yaml {test_environment_str} --manifest-root {test_output_metamanifest_root}"
+    subprocess.check_output(cmd_str_clean, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )
+    cmd_str_clean = f"conda vendor channels --channel-root {test_output_channel_root} --meta-manifest-path {test_metamanifest_path} -v"
+
+    subprocess.check_output(cmd_str_clean, stderr=subprocess.STDOUT, shell=True).decode(
+        "utf-8"
+    )

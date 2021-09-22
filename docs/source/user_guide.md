@@ -17,7 +17,7 @@ The intermediate meta-manifest is generated to allow for the creation of custom 
 
 Conda-vendor solves an environment with conda from an `environment.yaml` and determines all the packages that are required. The metadata for these required packages is stored in a file called `meta_manifest.yaml`. To create this file, run:
 
-	conda vendor create-meta-manifest --environment-yaml environment.yaml
+	conda vendor meta-manifest --environment-yaml environment.yaml
 		
 The above command will output a `meta_manifest.yaml` file in the current directory. 
 
@@ -25,9 +25,9 @@ The above command will output a `meta_manifest.yaml` file in the current directo
 
 With a meta-manifest file created, conda-vendor can then create local channels. 
 	
-	conda vendor create-channels --meta-manifest-path ./meta_manifest.yaml
+	conda vendor channels --meta-manifest-path ./meta_manifest.yaml
 
-This will create a directory called `local_channel` that will contain the same number of channels as were listed in the original `environment.yaml` file. These local channels will only contain the packages that are needed to satisfy the solved environment from the `create-meta-manifest` step.
+This will create a directory called `local_channel` that will contain the same number of channels as were listed in the original `environment.yaml` file. These local channels will only contain the packages that are needed to satisfy the solved environment from the `meta-manifest` step.
 
 ### Using the Local channel
 
@@ -46,7 +46,7 @@ This should show a list of all the packages in the environment the local paths t
 
 To generate a conda environment yaml that contains all the packages from the input `environment.yaml`, run the following:
 
-	conda vendor create-local-yaml --meta-manifest-path ./meta_manifest.yaml --channel-root <absolute_path_to_local_channel_dir>
+	conda vendor local-yaml --meta-manifest-path ./meta_manifest.yaml --channel-root <absolute_path_to_local_channel_dir>
 	
 This will create a environment file inside the `local_channel` directory called `local_conda-vendor-env.yaml`. An environment can then be created with:
 
@@ -60,6 +60,6 @@ The following functionality is only applicable if there is an organization that 
 
 To generate an iron bank manifest from the meta-manifest, run:
 
-	conda vendor create-custom-manifest --meta-manifest-path ./meta-manifest.yaml --output-manifest-path ./custom_manifest.yaml
+	conda vendor custom-manifest --meta-manifest-path ./meta-manifest.yaml --output-manifest-path ./custom_manifest.yaml
 	
 This will output a manifest file in the Iron Bank format.

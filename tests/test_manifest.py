@@ -27,6 +27,14 @@ def test_get_conda_platform(mock_struct) -> None:
     assert mock_struct.call_count == 1
 
 
+def test_get_conda_platform_custom():
+    test_platforms = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
+    expected_returns = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
+
+    actual_returns = [get_conda_platform(custom_platform=p) for p in test_platforms]
+    assert set(actual_returns) == set(expected_returns)
+
+
 def test_LockWrapper_init():
     lw = LockWrapper()
     assert isinstance(lw, LockWrapper)
@@ -118,12 +126,7 @@ def test_get_manifest(meta_manifest_fixture):
         },
     ]
 
-    test_env_deps_solution = {
-        "actions": {
-            "FETCH": test_fetch_entries,
-            "LINK": [],
-        }
-    }
+    test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
 
     test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 
