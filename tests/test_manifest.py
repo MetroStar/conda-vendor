@@ -28,27 +28,11 @@ def test_get_conda_platform(mock_struct) -> None:
 
 
 def test_get_conda_platform_custom():
-    test_platforms = ["linux", "windows", "osx"]
-    test_bit_architectures = [32, 64]
-    expected_returns = ["linux-32", "osx-32", "win-32", "linux-64", "osx-64", "win-64"]
+    test_platforms = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
+    expected_returns = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
 
-    actual_returns = []
-    for bit_base in test_bit_architectures:
-        for platform in test_platforms:
-            result = get_conda_platform(
-                custom_platform=platform, custom_architecture_bits=bit_base
-            )
-            actual_returns.append(result)
-
+    actual_returns = [get_conda_platform(custom_platform=p) for p in test_platforms]
     assert set(actual_returns) == set(expected_returns)
-
-    # Tests error when bit architecture not passed
-    with pytest.raises(NameError):
-        get_conda_platform(custom_platform="linux", custom_architecture_bits=None)
-
-    # Tests error when invalid platform passed
-    with pytest.raises(ValueError):
-        get_conda_platform(custom_platform="mac", custom_architecture_bits=64)
 
 
 def test_LockWrapper_init():

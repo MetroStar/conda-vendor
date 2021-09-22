@@ -29,28 +29,11 @@ class LockWrapper:
 
 # see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(
-    platform=sys.platform, custom_platform=None, custom_architecture_bits=None
+    platform=sys.platform, custom_platform=None,
 ):
-    supported_custom_platforms = ["linux", "windows", "osx"]
-    allowed_architecture_bits = [32, 64]
 
     if custom_platform is not None:
-        if custom_architecture_bits is None:
-            raise NameError(
-                "Bit architecture of custom system not defined. Please see --help for cli to pass this value (either 64 or 32)"
-            )
-        elif custom_architecture_bits not in allowed_architecture_bits:
-            raise ValueError("Only 32 and 64 bit systems are supported")
-        elif custom_platform == "linux":
-            return f"linux-{custom_architecture_bits}"
-        elif custom_platform == "osx":
-            return f"osx-{custom_architecture_bits}"
-        elif custom_platform == "windows":
-            return f"win-{custom_architecture_bits}"
-        else:
-            raise ValueError(
-                f"Unsupported custom platform. Please select one of the following: {supported_custom_platforms}"
-            )
+        return custom_platform
 
     _platform_map = {
         "linux2": "linux",
@@ -66,12 +49,7 @@ def get_conda_platform(
 
 class MetaManifest:
     def __init__(
-        self,
-        environment_yml,
-        *,
-        manifest_root=Path(),
-        custom_platform=None,
-        custom_platform_bits=None,
+        self, environment_yml, *, manifest_root=Path(), custom_platform=None,
     ):
         self.manifest_root = Path(manifest_root)
         logger.info(f"manifest_root : {self.manifest_root.absolute()}")
