@@ -51,7 +51,7 @@ def cli():
     "--custom-platform",
     "-c",
     default=None,
-    type=click.Choice(["linux-64", "linux-32", "windows-64", "windows-32", "osx-64"]),
+    type=click.Choice(["linux-64", "linux-32", "win-64", "win-32", "osx-64"]),
     help="Specify an alternate platform to use for the conda solve.",
 )
 def meta_manifest(
