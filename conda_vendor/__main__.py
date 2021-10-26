@@ -101,7 +101,7 @@ def channels(verbose, channel_root, meta_manifest_path):
     help="path to meta manifest file",
 )
 @click.option(
-    "--output-manifest-path", "-o", default="./", help="output manifest path",
+    "--output-manifest-path", "-o", default="./output_manifest.yaml", help="output manifest path",
 )
 def custom_manifest(verbose, manifest_type, meta_manifest_path, output_manifest_path):
     set_logging_verbosity(verbose)
