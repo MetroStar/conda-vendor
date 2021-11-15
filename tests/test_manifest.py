@@ -3,6 +3,9 @@ from conda_vendor.manifest import (
     MetaManifest,
     get_conda_platform,
     LockWrapper,
+    combine_metamanifests,
+    deduplicate_pkg_list,
+    read_manifests,
 )
 import pytest
 from requests import Response
@@ -126,7 +129,12 @@ def test_get_manifest(meta_manifest_fixture):
         },
     ]
 
-    test_env_deps_solution = {"actions": {"FETCH": test_fetch_entries, "LINK": [],}}
+    test_env_deps_solution = {
+        "actions": {
+            "FETCH": test_fetch_entries,
+            "LINK": [],
+        }
+    }
 
     test_meta_manifest.env_deps["solution"] = test_env_deps_solution
 
@@ -261,3 +269,99 @@ def test_add_pip_dependency(meta_manifest_fixture):
     result = meta_manifest_fixture.env_deps["environment"]
 
     TestCase().assertDictEqual(result, expected_env)
+
+
+def test_deduplicate_pkg_list():
+    test_pkg_list = [
+        {"name": "pkg1", "sha256": "sha-example1"},
+        {"name": "pgh2", "sha256": "sha-example2"},
+        {"name": "pkg3", "sha256": "sha-example3"},
+        {"name": "pkg2", "sha256": "sha-example2"},
+    ]
+
+    expected_pkg_list = [
+        {"name": "pkg1", "sha256": "sha-example1"},
+        {"name": "pgh2", "sha256": "sha-example2"},
+        {"name": "pkg3", "sha256": "sha-example3"},
+    ]
+
+    actual_pkg_list = deduplicate_pkg_list(test_pkg_list)
+
+    assert actual_pkg_list == expected_pkg_list
+
+
+def test_combine_metamanifests():
+    test_manifest1 = {
+        "main": {
+            "noarch": {"repodata_url": "main_example.com", "entries": []},
+            "linux-64": {
+                "repodata_url": "https://conda.anaconda.org/main/linux-64/repodata.json",
+                "entries": [
+                    {"name": "pkg1", "sha256": "sha-example1"},
+                    {"name": "pgh2", "sha256": "sha-example2"},
+                ],
+            },
+        },
+        "conda-forge": {
+            "noarch": {
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "entries": [{"name": "pkg3", "sha256": "sha-example3"}],
+            },
+            "linux-64": {"repodata_url": "forge_example.com", "entries": []},
+        },
+    }
+    test_manifest2 = {
+        "main": {
+            "noarch": {"repodata_url": "main_example.com", "entries": []},
+            "linux-64": {
+                "repodata_url": f"https://conda.anaconda.org/main/linux-64/repodata.json",
+                "entries": [
+                    {"name": "pkg4", "sha256": "sha-example4"},
+                    {"name": "pkg2", "sha256": "sha-example2"},
+                ],
+            },
+        },
+    }
+    expected_return = {
+        "main": {
+            "noarch": {"repodata_url": "main_example.com", "entries": []},
+            "linux-64": {
+                "repodata_url": "https://conda.anaconda.org/main/linux-64/repodata.json",
+                "entries": [
+                    {"name": "pkg1", "sha256": "sha-example1"},
+                    {"name": "pgh2", "sha256": "sha-example2"},
+                    {"name": "pkg4", "sha256": "sha-example4"},
+                ],
+            },
+        },
+        "conda-forge": {
+            "noarch": {
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "entries": [{"name": "pkg3", "sha256": "sha-example3"}],
+            },
+            "linux-64": {"repodata_url": "forge_example.com", "entries": []},
+        },
+    }
+    test_manifests_list = [test_manifest1, test_manifest2]
+
+    actual_return = combine_metamanifests(test_manifests_list)
+    assert actual_return == expected_return
+
+
+def test_read_manifests(tmp_path):
+    yaml1 = {"key1", "value1"}
+    yaml2 = {"key2", "value2"}
+
+    yaml_path1 = tmp_path / "yaml1.yaml"
+    yaml_path2 = tmp_path / "yaml2.yaml"
+
+    with open(yaml_path1, "w") as f:
+        yaml.dump(yaml1, f)
+
+    with open(yaml_path2, "w") as f:
+        yaml.dump(yaml2, f)
+
+    expected_manifest_list = [yaml1, yaml2]
+    actual_manifest_list = read_manifests([yaml_path1, yaml_path2])
+
+    assert actual_manifest_list == expected_manifest_list

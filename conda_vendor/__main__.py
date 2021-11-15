@@ -8,7 +8,8 @@ from conda_vendor.cli import (
     yaml_from_manifest,
 )
 from conda_vendor.version import __version__
-
+from conda_vendor.manifest import combine_metamanifests
+import yaml
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,11 @@ def cli():
     help="Specify an alternate platform to use for the conda solve.",
 )
 def meta_manifest(
-    verbose, environment_yaml, manifest_root, manifest_filename, custom_platform,
+    verbose,
+    environment_yaml,
+    manifest_root,
+    manifest_filename,
+    custom_platform,
 ):
     set_logging_verbosity(verbose)
     click.echo(manifest_root)
@@ -64,8 +69,36 @@ def meta_manifest(
     manifest_root = Path(manifest_root)
 
     meta_manifest_from_env_yml(
-        environment_yaml, manifest_root, manifest_filename, custom_platform,
+        environment_yaml,
+        manifest_root,
+        manifest_filename,
+        custom_platform,
     )
+
+
+@click.command(help="Combine two or more meta-manifest files")
+@click.option("-v", "--verbose", is_flag=True, help="verbose logging", is_eager=True)
+@click.option(
+    "--meta-manifest-paths",
+    "-m",
+    help="Paths to a meta manifest files. Pass flag for each manifest E.G. '-m manifest1.yaml -m manifest2.yaml'",
+    multiple=True,
+)
+@click.option(
+    "--output-combined-path",
+    "-o",
+    help="path to output combined manifest file",
+    default="./combined_manifest.yaml",
+)
+def combine_manifests(verbose, meta_manifest_paths, output_combined_path):
+    set_logging_verbosity(verbose)
+    print(meta_manifest_paths)
+    paths = list(meta_manifest_paths)
+    combined_manifest = combine_metamanifests(manifest_paths=paths)
+
+    logger.info(f"Writing combined manifest to: {output_combined_path}")
+    with open(output_combined_path, "w") as f:
+        yaml.dump(combined_manifest, sort_keys=False)
 
 
 @click.command(help="local channels from meta-manifest file")
@@ -101,7 +134,10 @@ def channels(verbose, channel_root, meta_manifest_path):
     help="path to meta manifest file",
 )
 @click.option(
-    "--output-manifest-path", "-o", default="./output_manifest.yaml", help="output manifest path",
+    "--output-manifest-path",
+    "-o",
+    default="./output_manifest.yaml",
+    help="output manifest path",
 )
 def custom_manifest(verbose, manifest_type, meta_manifest_path, output_manifest_path):
     set_logging_verbosity(verbose)
@@ -151,6 +187,7 @@ cli.add_command(meta_manifest)
 cli.add_command(channels)
 cli.add_command(custom_manifest)
 cli.add_command(local_yaml)
+cli.add_command(combine_manifests)
 
 
 if __name__ == "__main__":
