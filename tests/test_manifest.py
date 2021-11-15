@@ -290,7 +290,7 @@ def test_deduplicate_pkg_list():
     assert actual_pkg_list == expected_pkg_list
 
 
-def test_combine_metamanifests():
+def test_combine_metamanifests(tmp_path):
     test_manifest1 = {
         "main": {
             "noarch": {"repodata_url": "main_example.com", "entries": []},
@@ -342,7 +342,17 @@ def test_combine_metamanifests():
             "linux-64": {"repodata_url": "forge_example.com", "entries": []},
         },
     }
-    test_manifests_list = [test_manifest1, test_manifest2]
+
+    manifest_path_1 = tmp_path / "test_manifest1.yaml"
+    manifest_path_2 = tmp_path / "test_manifest2.yaml"
+    test_manifests_list = [manifest_path_1, manifest_path_2]
+
+    with open(manifest_path_1, "w") as f:
+        yaml.dump(test_manifest1, f)
+
+    with open(manifest_path_2, "w") as f:
+        yaml.dump(test_manifest2, f)
+
 
     actual_return = combine_metamanifests(test_manifests_list)
     assert actual_return == expected_return
