@@ -17,6 +17,52 @@ from requests.packages.urllib3.util.retry import Retry
 logger = logging.getLogger(__name__)
 
 
+def combine_metamanifests(manifest_paths):
+    manifests = read_manifests(manifest_paths)
+
+    combined = {}
+    for manifest in manifests:
+        for channel in manifest.keys():
+            if not channel in combined.keys():
+                combined[channel] = manifest[channel]
+            else:
+                for arch in manifest[channel].keys():
+                    if arch in combined[channel].keys():
+                        pkg_list = deduplicate_pkg_list(
+                            combined[channel][arch]["entries"]
+                            + manifest[channel][arch]["entries"]
+                        )
+                        combined[channel][arch]["entries"] = pkg_list
+                    else:
+                        combined[channel][arch]["entries"] = manifest[channel][arch][
+                            "entries"
+                        ]
+                        combined[channel][arch]["repodata_url"] = manifest[channel][
+                            arch
+                        ]["repodata_url"]
+    return combined
+
+
+def deduplicate_pkg_list(package_list):
+    seen_shas = set()
+    deduped_list = []
+
+    for package in package_list:
+        if package["sha256"] not in seen_shas:
+            deduped_list.append(package)
+            seen_shas.add(package["sha256"])
+
+    return deduped_list
+
+
+def read_manifests(manifest_paths):
+    manifest_list = []
+    for manifest_path in manifest_paths:
+        with open(manifest_path, "r") as f:
+            manifest_list.append(yaml.safe_load(f))
+    return manifest_list
+
+
 class LockWrapper:
     @staticmethod
     def parse(*args):
@@ -29,7 +75,8 @@ class LockWrapper:
 
 # see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(
-    platform=sys.platform, custom_platform=None,
+    platform=sys.platform,
+    custom_platform=None,
 ):
 
     if custom_platform is not None:
@@ -49,7 +96,11 @@ def get_conda_platform(
 
 class MetaManifest:
     def __init__(
-        self, environment_yml, *, manifest_root=Path(), custom_platform=None,
+        self,
+        environment_yml,
+        *,
+        manifest_root=Path(),
+        custom_platform=None,
     ):
         self.manifest_root = Path(manifest_root)
         logger.info(f"manifest_root : {self.manifest_root.absolute()}")
