@@ -98,7 +98,7 @@ def combine_manifests(verbose, meta_manifest_paths, output_combined_path):
 
     logger.info(f"Writing combined manifest to: {output_combined_path}")
     with open(output_combined_path, "w") as f:
-        yaml.dump(combined_manifest, sort_keys=False)
+        yaml.dump(combined_manifest, f, sort_keys=False)
 
 
 @click.command(help="local channels from meta-manifest file")
