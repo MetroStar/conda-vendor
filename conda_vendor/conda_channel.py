@@ -78,7 +78,6 @@ class CondaChannel:
     def get_all_repo_data(self):
         if self.all_repo_data:
             return self.all_repo_data
-        # this is where
         all_repo_data = {}
 
         for chan in self.channels:

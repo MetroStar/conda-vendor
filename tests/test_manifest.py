@@ -56,13 +56,8 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
     expected_manifest = None
     expected_type = MetaManifest
     expected_env_deps = {
-        "specs": ["python=3.9.5"],
+        "specs": ["python=3.9.5", "pip"],
         "channels": ["main"],
-        "environment": {
-            "name": "minimal_env",
-            "channels": ["main"],
-            "dependencies": ["python=3.9.5", "pip"],
-        },
     }
 
     assert test_meta_manifest.platform is not None
@@ -90,7 +85,7 @@ def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
     mock.assert_called_with(
         "conda",
         ["main", "conda-forge"],
-        specs=["python=3.9.5", "conda-mirror=0.8.2"],
+        specs=["python=3.9.5", "conda-mirror=0.8.2", "pip"],
         platform=platform,
     )
     TestCase().assertDictEqual(result[0], expected[0])
@@ -254,19 +249,17 @@ def test_add_pip_question_mark(meta_manifest_fixture):
 
 def test_add_pip_dependency(meta_manifest_fixture):
     mock_env_python = {
-        "name": "blah",
         "channels": ["chronotrigger"],
-        "dependencies": ["python"],
+        "specs": ["python"],
     }
 
     expected_env = {
-        "name": "blah",
         "channels": ["chronotrigger"],
-        "dependencies": ["python", "pip"],
+        "specs": ["python", "pip"],
     }
-    meta_manifest_fixture.env_deps["environment"] = mock_env_python
+    meta_manifest_fixture.env_deps = mock_env_python
     meta_manifest_fixture.add_pip_dependency()
-    result = meta_manifest_fixture.env_deps["environment"]
+    result = meta_manifest_fixture.env_deps
 
     TestCase().assertDictEqual(result, expected_env)
 
@@ -352,7 +345,6 @@ def test_combine_metamanifests(tmp_path):
 
     with open(manifest_path_2, "w") as f:
         yaml.dump(test_manifest2, f)
-
 
     actual_return = combine_metamanifests(test_manifests_list)
     assert actual_return == expected_return
