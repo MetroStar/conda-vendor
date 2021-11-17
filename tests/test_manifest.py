@@ -6,6 +6,7 @@ from conda_vendor.manifest import (
     combine_metamanifests,
     deduplicate_pkg_list,
     read_manifests,
+    write_combined_manifest,
 )
 import pytest
 from requests import Response
@@ -351,8 +352,8 @@ def test_combine_metamanifests(tmp_path):
 
 
 def test_read_manifests(tmp_path):
-    yaml1 = {"key1", "value1"}
-    yaml2 = {"key2", "value2"}
+    yaml1 = {"key1": "value1"}
+    yaml2 = {"key2": "value2"}
 
     yaml_path1 = tmp_path / "yaml1.yaml"
     yaml_path2 = tmp_path / "yaml2.yaml"
@@ -367,3 +368,15 @@ def test_read_manifests(tmp_path):
     actual_manifest_list = read_manifests([yaml_path1, yaml_path2])
 
     assert actual_manifest_list == expected_manifest_list
+
+
+def test_write_combined_manifest(tmp_path):
+    test_yaml = {"key1": "value1"}
+    yaml_path = tmp_path / "test_yaml.yaml"
+
+    write_combined_manifest(yaml_path, test_yaml)
+
+    with open(yaml_path, "r") as f:
+        actual_yaml = yaml.safe_load(f)
+
+    TestCase().assertDictEqual(actual_yaml, test_yaml)

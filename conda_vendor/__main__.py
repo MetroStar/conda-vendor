@@ -8,7 +8,7 @@ from conda_vendor.cli import (
     yaml_from_manifest,
 )
 from conda_vendor.version import __version__
-from conda_vendor.manifest import combine_metamanifests
+from conda_vendor.manifest import combine_metamanifests, write_combined_manifest
 import yaml
 import logging
 
@@ -97,8 +97,7 @@ def combine_manifests(verbose, meta_manifest_paths, output_combined_path):
     combined_manifest = combine_metamanifests(manifest_paths=paths)
 
     logger.info(f"Writing combined manifest to: {output_combined_path}")
-    with open(output_combined_path, "w") as f:
-        yaml.dump(combined_manifest, f, sort_keys=False)
+    write_combined_manifest(output_combined_path, combined_manifest)
 
 
 @click.command(help="local channels from meta-manifest file")
