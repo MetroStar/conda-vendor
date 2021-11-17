@@ -6,6 +6,7 @@ from conda_vendor.manifest import (
     combine_metamanifests,
     deduplicate_pkg_list,
     read_manifests,
+    write_combined_manifest,
 )
 import pytest
 from requests import Response
@@ -56,13 +57,8 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
     expected_manifest = None
     expected_type = MetaManifest
     expected_env_deps = {
-        "specs": ["python=3.9.5"],
+        "specs": ["python=3.9.5", "pip"],
         "channels": ["main"],
-        "environment": {
-            "name": "minimal_env",
-            "channels": ["main"],
-            "dependencies": ["python=3.9.5", "pip"],
-        },
     }
 
     assert test_meta_manifest.platform is not None
@@ -90,7 +86,7 @@ def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
     mock.assert_called_with(
         "conda",
         ["main", "conda-forge"],
-        specs=["python=3.9.5", "conda-mirror=0.8.2"],
+        specs=["python=3.9.5", "conda-mirror=0.8.2", "pip"],
         platform=platform,
     )
     TestCase().assertDictEqual(result[0], expected[0])
@@ -254,19 +250,17 @@ def test_add_pip_question_mark(meta_manifest_fixture):
 
 def test_add_pip_dependency(meta_manifest_fixture):
     mock_env_python = {
-        "name": "blah",
         "channels": ["chronotrigger"],
-        "dependencies": ["python"],
+        "specs": ["python"],
     }
 
     expected_env = {
-        "name": "blah",
         "channels": ["chronotrigger"],
-        "dependencies": ["python", "pip"],
+        "specs": ["python", "pip"],
     }
-    meta_manifest_fixture.env_deps["environment"] = mock_env_python
+    meta_manifest_fixture.env_deps = mock_env_python
     meta_manifest_fixture.add_pip_dependency()
-    result = meta_manifest_fixture.env_deps["environment"]
+    result = meta_manifest_fixture.env_deps
 
     TestCase().assertDictEqual(result, expected_env)
 
@@ -353,14 +347,13 @@ def test_combine_metamanifests(tmp_path):
     with open(manifest_path_2, "w") as f:
         yaml.dump(test_manifest2, f)
 
-
     actual_return = combine_metamanifests(test_manifests_list)
     assert actual_return == expected_return
 
 
 def test_read_manifests(tmp_path):
-    yaml1 = {"key1", "value1"}
-    yaml2 = {"key2", "value2"}
+    yaml1 = {"key1": "value1"}
+    yaml2 = {"key2": "value2"}
 
     yaml_path1 = tmp_path / "yaml1.yaml"
     yaml_path2 = tmp_path / "yaml2.yaml"
@@ -375,3 +368,15 @@ def test_read_manifests(tmp_path):
     actual_manifest_list = read_manifests([yaml_path1, yaml_path2])
 
     assert actual_manifest_list == expected_manifest_list
+
+
+def test_write_combined_manifest(tmp_path):
+    test_yaml = {"key1": "value1"}
+    yaml_path = tmp_path / "test_yaml.yaml"
+
+    write_combined_manifest(yaml_path, test_yaml)
+
+    with open(yaml_path, "r") as f:
+        actual_yaml = yaml.safe_load(f)
+
+    TestCase().assertDictEqual(actual_yaml, test_yaml)
