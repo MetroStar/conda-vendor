@@ -216,13 +216,17 @@ def read_manifests(manifest_paths):
     manifest_list = []
     for manifest_path in manifest_paths:
         with open(manifest_path, "r") as f:
+
             manifest_list.append(YAML(typ="safe").load(f))
+
     return manifest_list
 
 
 def write_combined_manifest(manifest_path, combined_manifest):
     with open(manifest_path, "w") as f:
+
         YAML().dump(
             combined_manifest,
             f,
         )
+

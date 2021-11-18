@@ -347,6 +347,7 @@ def test_combine_metamanifests(tmp_path):
     with open(manifest_path_2, "w") as f:
         YAML().dump(test_manifest2, f)
 
+
     actual_return = combine_metamanifests(test_manifests_list)
     assert actual_return == expected_return
 
@@ -377,6 +378,8 @@ def test_write_combined_manifest(tmp_path):
     write_combined_manifest(yaml_path, test_yaml)
 
     with open(yaml_path, "r") as f:
+
         actual_yaml = YAML(typ="safe").load(f)
+
 
     TestCase().assertDictEqual(actual_yaml, test_yaml)
