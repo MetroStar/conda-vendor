@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call, mock_open, patch
 
-import yaml
+from ruamel.yaml import YAML
 
 from conda_vendor.custom_manifest import CustomManifest, IBManifest
 
@@ -40,7 +40,9 @@ def test_write_custom_manifest(mock_read_meta_manifest, tmp_path):
 
     custom_channel.write_custom_manifest(test_output_path)
     with open(expected_custom_manifest_destination, "r") as f:
-        actual_custom_manifest = yaml.load(f, Loader=yaml.SafeLoader)
+        actual_custom_manifest = YAML(typ="safe").load(
+            f,
+        )
 
     assert actual_custom_manifest == expected_custom_manifest
 

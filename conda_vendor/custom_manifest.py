@@ -3,7 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import yaml
+from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,9 @@ class CustomManifest(ABC):
 
     def read_meta_manifest(self, manifest_path):
         with open(self.manifest_path) as f:
-            return yaml.load(f, Loader=yaml.SafeLoader)
+            return YAML(typ="safe").load(
+                f,
+            )
 
     @abstractmethod
     def write_custom_manifest(self, output_path=None):
@@ -38,7 +40,10 @@ class IBManifest(CustomManifest):
 
         logger.info(f"Output Custom Manifest : {str(output_file_path.absolute())}")
         with open(output_file_path, "w") as f:
-            yaml.dump(self.custom_manifest, f, sort_keys=False)
+            YAML().dump(
+                self.custom_manifest,
+                f,
+            )
 
     @staticmethod
     def strip_lead_underscore(in_str):

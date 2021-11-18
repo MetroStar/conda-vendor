@@ -3,7 +3,7 @@ import sys
 from unittest.mock import Mock
 
 import pytest
-import yaml
+from ruamel.yaml import YAML
 
 from conda_vendor.conda_channel import CondaChannel
 from conda_vendor.manifest import MetaManifest
@@ -60,7 +60,10 @@ def get_path_location_for_manifest_fixture(tmpdir_factory):
 
     fn = tmpdir_factory.mktemp("minimal_env").join("env.yml")
     with open(fn, "w") as f:
-        yaml.dump(fixture_manifest, f, sort_keys=False)
+        YAML().dump(
+            fixture_manifest,
+            f,
+        )
 
     return fn
 

@@ -1,6 +1,6 @@
 from pathlib import Path
-
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml import YAML
 
 
 class YamlFromManifest:
@@ -10,7 +10,9 @@ class YamlFromManifest:
 
     def load_manifest(self, meta_manifest_path):
         with open(meta_manifest_path) as f:
-            return yaml.load(f, Loader=yaml.SafeLoader)
+            return YAML(typ="safe").load(
+                f,
+            )
 
     def get_packages_from_manifest(self):
         i_bank_pkg_list = []
@@ -40,5 +42,8 @@ class YamlFromManifest:
         }
         fn = channel_root / f"local_{env_name}.yaml"
         with open(fn, "w") as f:
-            yaml.dump(env_yaml, f, sort_keys=False)
+            YAML().dump(
+                env_yaml,
+                f,
+            )
         return env_yaml

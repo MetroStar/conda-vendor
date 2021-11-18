@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import requests
-import yaml
+from ruamel.yaml import YAML
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
@@ -37,7 +37,9 @@ class CondaChannel:
 
     def load_manifest(self, manifest_path):
         with open(manifest_path) as f:
-            return yaml.load(f, Loader=yaml.SafeLoader)
+            return YAML(typ="safe").load(
+                f,
+            )
 
     def fetch_and_filter_repodata(self, conda_subdir, manifest_subset_metadata):
         # returns a channel specific repodata.json

@@ -6,9 +6,8 @@ import os
 import struct
 import sys
 from pathlib import Path
-
+from ruamel.yaml import YAML
 import requests
-import yaml
 from conda_lock.conda_lock import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
@@ -118,7 +117,10 @@ class MetaManifest:
         outpath_file_name = self.manifest_root / cleaned_name
         logger.info(f"Creating Manifest {outpath_file_name.absolute()}")
         with open(outpath_file_name, "w") as f:
-            yaml.dump(manifest, f, sort_keys=False)
+            YAML().dump(
+                manifest,
+                f,
+            )
         return manifest
 
     def get_manifest(self):
@@ -214,10 +216,17 @@ def read_manifests(manifest_paths):
     manifest_list = []
     for manifest_path in manifest_paths:
         with open(manifest_path, "r") as f:
-            manifest_list.append(yaml.safe_load(f))
+
+            manifest_list.append(YAML(typ="safe").load(f))
+
     return manifest_list
 
 
 def write_combined_manifest(manifest_path, combined_manifest):
     with open(manifest_path, "w") as f:
-        yaml.dump(combined_manifest, f, sort_keys=False)
+
+        YAML().dump(
+            combined_manifest,
+            f,
+        )
+
