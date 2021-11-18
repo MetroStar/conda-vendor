@@ -3,7 +3,7 @@ import subprocess
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-import yaml
+from ruamel.yaml import YAML
 
 from conda_vendor.cli import (
     ironbank_from_meta_manifest,
@@ -39,7 +39,9 @@ def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
         minimal_conda_forge_environment, tmp_path, test_manifest_filename
     )
     with open(expected_manifest_path) as f:
-        actual_manifest = yaml.load(f, Loader=yaml.SafeLoader)
+        actual_manifest = YAML(typ="safe").load(
+            f,
+        )
 
     assert "main" in actual_manifest.keys()
     assert "conda-forge" in actual_manifest.keys()

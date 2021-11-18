@@ -9,7 +9,7 @@ from conda_vendor.cli import (
 )
 from conda_vendor.version import __version__
 from conda_vendor.manifest import combine_metamanifests, write_combined_manifest
-import yaml
+from ruamel.yaml import YAML
 import logging
 
 logger = logging.getLogger(__name__)

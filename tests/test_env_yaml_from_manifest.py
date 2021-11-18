@@ -3,7 +3,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
-import yaml
+from ruamel.yaml import YAML
 from yaml import SafeLoader
 
 from conda_vendor.env_yaml_from_manifest import YamlFromManifest
@@ -20,7 +20,7 @@ def yml_man_fixture(tmp_path, get_path_location_for_manifest_fixture):
 def test_YamlFromManifest_init_(yml_man_fixture):
     test_manifest_path = yml_man_fixture.meta_manifest_path
     with open(test_manifest_path, "r") as f:
-        expected = yaml.load(f, Loader=SafeLoader)
+        expected = YAML(typ="safe").load(f)
     result = yml_man_fixture.meta_manifest
     TestCase().assertDictEqual(expected, result)
 

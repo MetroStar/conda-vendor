@@ -4,25 +4,24 @@ from unittest import TestCase
 from unittest.mock import Mock, call, mock_open, patch
 
 import pytest
-import yaml
+from ruamel.yaml import YAML
 from requests import Response
 from requests.adapters import urldefragauth
 from yaml import safe_load
-from yaml.loader import SafeLoader
-
+from ruamel.yaml import YAML
 from conda_vendor.conda_channel import CondaChannel, improved_download
 from conda_vendor.manifest import LockWrapper, MetaManifest
 
 from .conftest import mock_response
 
 
-@patch("yaml.load")
+@patch("ruamel.yaml.YAML")
 def test_load_manifest(mock, conda_channel_fixture, tmp_path):
     test_manifest_path = tmp_path / "test_manifest.yml"
     with open(test_manifest_path, "w") as y:
         y.write("test")
     conda_channel_fixture.load_manifest(test_manifest_path)
-    mock.assert_called_once_with = [test_manifest_path, yaml.SafeLoader]
+    mock.assert_called_once_with = [test_manifest_path]
 
 
 @patch("requests.Session.get")

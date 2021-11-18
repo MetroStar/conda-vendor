@@ -12,7 +12,7 @@ import pytest
 from requests import Response
 import hashlib
 import json
-import yaml
+from ruamel.yaml import YAML
 from requests import Response
 from unittest import TestCase
 from unittest.mock import Mock, patch, call, mock_open
@@ -227,7 +227,7 @@ def test_create_manifest(meta_manifest_fixture, tmp_path):
     test_manifest_fixture.create_manifest()
 
     with open(expected_path, "r") as f:
-        actual_manifest = yaml.load(f, Loader=SafeLoader)
+        actual_manifest = YAML(typ="safe").load(f)
 
     TestCase().assertDictEqual(actual_manifest, expected_manifest)
 
@@ -342,10 +342,10 @@ def test_combine_metamanifests(tmp_path):
     test_manifests_list = [manifest_path_1, manifest_path_2]
 
     with open(manifest_path_1, "w") as f:
-        yaml.dump(test_manifest1, f)
+        YAML().dump(test_manifest1, f)
 
     with open(manifest_path_2, "w") as f:
-        yaml.dump(test_manifest2, f)
+        YAML().dump(test_manifest2, f)
 
     actual_return = combine_metamanifests(test_manifests_list)
     assert actual_return == expected_return
@@ -359,10 +359,10 @@ def test_read_manifests(tmp_path):
     yaml_path2 = tmp_path / "yaml2.yaml"
 
     with open(yaml_path1, "w") as f:
-        yaml.dump(yaml1, f)
+        YAML().dump(yaml1, f)
 
     with open(yaml_path2, "w") as f:
-        yaml.dump(yaml2, f)
+        YAML().dump(yaml2, f)
 
     expected_manifest_list = [yaml1, yaml2]
     actual_manifest_list = read_manifests([yaml_path1, yaml_path2])
@@ -377,6 +377,6 @@ def test_write_combined_manifest(tmp_path):
     write_combined_manifest(yaml_path, test_yaml)
 
     with open(yaml_path, "r") as f:
-        actual_yaml = yaml.safe_load(f)
+        actual_yaml = YAML(typ="safe").load(f)
 
     TestCase().assertDictEqual(actual_yaml, test_yaml)
