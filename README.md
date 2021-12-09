@@ -23,8 +23,7 @@ The intermediate meta-manifest is generated to allow for the creation of custom 
 
 Conda-vendor solves an environment with conda from an `environment.yaml` and determines all the packages that are required. The metadata for these required packages is stored in a file called `meta_manifest.yaml`. To create this file, run:
 
-	conda vendor meta-manifest
-	t --environment-yaml environment.yaml
+	conda vendor meta-manifest --environment-yaml environment.yaml
 		
 The above command will output a `meta_manifest.yaml` file in the current directory. 
 
