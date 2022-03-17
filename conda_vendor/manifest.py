@@ -66,7 +66,7 @@ class MetaManifest:
         parse_return = LockWrapper.parse(environment_yml)
 
         self.env_deps = {
-            "specs": parse_return.specs,
+            "dependencies": parse_return.dependencies,
             "channels": parse_return.channels,
         }
 
