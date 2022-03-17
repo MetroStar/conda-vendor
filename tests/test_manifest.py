@@ -57,7 +57,7 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
     expected_manifest = None
     expected_type = MetaManifest
     expected_env_deps = {
-        "specs": ["python=3.9.5", "pip"],
+        "dependencies": ["python=3.9.5", "pip"],
         "channels": ["main"],
     }
 
@@ -251,12 +251,12 @@ def test_add_pip_question_mark(meta_manifest_fixture):
 def test_add_pip_dependency(meta_manifest_fixture):
     mock_env_python = {
         "channels": ["chronotrigger"],
-        "specs": ["python"],
+        "dependencies": ["python"],
     }
 
     expected_env = {
         "channels": ["chronotrigger"],
-        "specs": ["python", "pip"],
+        "dependencies": ["python", "pip"],
     }
     meta_manifest_fixture.env_deps = mock_env_python
     meta_manifest_fixture.add_pip_dependency()

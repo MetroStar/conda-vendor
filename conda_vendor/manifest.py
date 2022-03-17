@@ -95,7 +95,7 @@ class MetaManifest:
     def add_pip_dependency(self):
         add_pip_dependency = self.add_pip_question_mark()
 
-        dependencies = self.env_deps["specs"].copy()
+        dependencies = self.env_deps["dependencies"].copy()
         has_python = "python" in "".join(dependencies)
 
         if add_pip_dependency is True and has_python:
