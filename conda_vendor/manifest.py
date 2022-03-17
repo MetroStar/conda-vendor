@@ -63,7 +63,7 @@ class MetaManifest:
 
         # create from envirenment yaml
         self.manifest = None
-        parse_return = LockWrapper.parse(environment_yml, self.platform)
+        parse_return = LockWrapper.parse(environment_yml)
 
         self.env_deps = {
             "specs": parse_return.specs,

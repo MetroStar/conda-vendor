@@ -46,9 +46,9 @@ def test_LockWrapper_init():
 
 @patch("conda_vendor.manifest.LockWrapper.parse")
 def test_LockWrapper_parse(mock):
-    test_args = ["dummy_path.yaml", "dummy-64"]
+    test_args = ["dummy_path.yaml"]
     LockWrapper.parse(*test_args)
-    mock.assert_called_once_with("dummy_path.yaml", "dummy-64")
+    mock.assert_called_once_with("dummy_path.yaml")
 
 
 def test_MetaManifest_init(minimal_environment, tmp_path):
