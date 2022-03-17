@@ -9,6 +9,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 import requests
 from conda_lock.conda_solver import solve_specs_for_arch
+from conda_lock.src_parser import VersionedDependency, Selectors
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -95,11 +96,27 @@ class MetaManifest:
     def add_pip_dependency(self):
         add_pip_dependency = self.add_pip_question_mark()
 
-        dependencies = self.env_deps["dependencies"].copy()
-        has_python = "python" in "".join(dependencies)
-
-        if add_pip_dependency is True and has_python:
-            self.env_deps["specs"].append("pip")
+        #WIP TODO: env_deps: List(VersionedDependency) handling
+        
+        if add_pip_dependency is True:
+            # WIP TODO add pip if List(VersionedDependency) contains python
+            # and create a new VersionedDependency for pip, then append it to 
+            # env_deps
+            for versioned_dependency in self.env_deps["dependencies"]:
+                if versioned_dependency.name == 'python':
+                    logger.info("python dependency found in dependencies, adding pip VersionedDependency")
+                    pip_versioned_dep = VersionedDependency(
+                            name='pip',
+                            manager='conda',
+                            optional=False,
+                            category='main',
+                            extras=[],
+                            selectors=Selectors(platform=None),
+                            version='22.*',
+                            build=None)
+                    self.env_deps["dependencies"].append(pip_versioned_dep)
+                else:
+                    logger.info("python not found in dependencies, skip adding pip VersionedDependency")
 
     def get_manifest_filename(self, manifest_filename=None):
         if manifest_filename is None:
