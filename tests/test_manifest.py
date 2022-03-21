@@ -97,7 +97,6 @@ def test_MetaManifest_init_fail(minimal_environment_defaults):
         MetaManifest(minimal_environment_defaults)
 
 
-#TODO: update to use Dependencies/VersionedDependencies
 @patch("conda_vendor.manifest.LockWrapper.solve")
 def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
     platform = meta_manifest_fixture.platform
@@ -157,7 +156,6 @@ def test_get_purl(meta_manifest_fixture):
     assert expected_purl == actual_purl
 
 
-# TODO: update to use Dependencies/VersionedDependencies
 def test_get_manifest(meta_manifest_fixture):
     test_meta_manifest = meta_manifest_fixture
     platform = meta_manifest_fixture.platform
@@ -298,22 +296,48 @@ def test_add_pip_question_mark(meta_manifest_fixture):
     assert expected_for_false == actual_for_false
     assert expected_for_true == actual_for_true
 
-# TODO: update for Dependency/VersionedDependency
-#def test_add_pip_dependency(meta_manifest_fixture):
-#    mock_env_python = {
-#        "channels": ["chronotrigger"],
-#        "dependencies": ["python"],
-#    }
-#
-#    expected_env = {
-#        "channels": ["chronotrigger"],
-#        "dependencies": ["python", "pip"],
-#    }
-#    meta_manifest_fixture.env_deps = mock_env_python
-#    meta_manifest_fixture.add_pip_dependency()
-#    result = meta_manifest_fixture.env_deps
-#
-#    TestCase().assertDictEqual(result, expected_env)
+def test_add_pip_dependency(meta_manifest_fixture):
+    mock_env_python = {
+        "channels": [Channel(url="chronotrigger")],
+        "dependencies": [
+            VersionedDependency(
+                name='python',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='3.9.5.*',
+                build=None)],
+    }
+
+    expected_env = {
+        "channels": [Channel(url="chronotrigger")],
+        "dependencies": [
+           VersionedDependency(
+                name='python',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='3.9.5.*',
+                build=None),
+            VersionedDependency(
+                name='pip',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='22.*',
+                build=None)],
+    }
+    meta_manifest_fixture.env_deps = mock_env_python
+    meta_manifest_fixture.add_pip_dependency()
+    result = meta_manifest_fixture.env_deps
+
+    TestCase().assertDictEqual(result, expected_env)
 
 
 def test_deduplicate_pkg_list():
