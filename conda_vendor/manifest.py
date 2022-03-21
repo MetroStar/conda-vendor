@@ -180,12 +180,12 @@ class MetaManifest:
     def solve_environment(self):
         if "solution" not in self.env_deps:
             logger.info(
-                f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['specs']} \nplatform : {self.platform}"
+                f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['dependencies']} \nplatform : {self.platform}"
             )
             solution = LockWrapper.solve(
                 "conda",
                 self.env_deps["channels"],
-                specs=self.env_deps["specs"],
+                specs=self.env_deps["dependencies"],
                 platform=self.platform,
             )
             self.env_deps["solution"] = solution

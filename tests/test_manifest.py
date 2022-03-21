@@ -98,21 +98,48 @@ def test_MetaManifest_init_fail(minimal_environment_defaults):
 
 
 #TODO: update to use Dependencies/VersionedDependencies
-#@patch("conda_vendor.manifest.LockWrapper.solve")
-#def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
-#    platform = meta_manifest_fixture.platform
-#    mock_data = {"actions": {"FETCH": [{"DUMMY_KEY": "DUMMY_VAL"}], "LINK": []}}
-#    mock.return_value = mock_data
-#    expected = mock_data["actions"]["FETCH"]
-#    result = meta_manifest_fixture.solve_environment()
-#    assert mock.call_count == 1
-#    mock.assert_called_with(
-#        "conda",
-#        ["main", "conda-forge"],
-#        specs=["python=3.9.5", "conda-mirror=0.8.2", "pip"],
-#        platform=platform,
-#    )
-#    TestCase().assertDictEqual(result[0], expected[0])
+@patch("conda_vendor.manifest.LockWrapper.solve")
+def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
+    platform = meta_manifest_fixture.platform
+    mock_data = {"actions": {"FETCH": [{"DUMMY_KEY": "DUMMY_VAL"}], "LINK": []}}
+    mock.return_value = mock_data
+    expected = mock_data["actions"]["FETCH"]
+    result = meta_manifest_fixture.solve_environment()
+    assert mock.call_count == 1
+    mock.assert_called_with(
+        "conda",
+        [Channel(url="main"), Channel(url="conda-forge")],
+        specs=[
+            VersionedDependency(
+                name='python',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='3.9.5.*',
+                build=None),
+            VersionedDependency(
+                name='conda-mirror',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='0.8.2.*',
+                build=None),
+            VersionedDependency(
+                name='pip',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='22.*',
+                build=None)],
+        platform=platform,
+    )
+    TestCase().assertDictEqual(result[0], expected[0])
 
 
 def test_get_purl(meta_manifest_fixture):
