@@ -74,10 +74,10 @@ class MetaManifest:
 
         logger.info(f"Using Environment :{environment_yml}")
         
-        bad_channels = [Channel(url='nodefaults')]
+        bad_channels = [Channel(url='defaults')]
         self.channels = []
         for channel in self.env_deps["channels"]:
-            if channel.url == 'defaults':
+            if channel.url == bad_channels[0].url:
                 raise RuntimeError("default channels are not supported.")
             else:
                 self.channels.append(channel)
