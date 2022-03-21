@@ -15,6 +15,8 @@ from conda_lock.models.channel import Channel
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from typing import Sequence, List
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,6 +138,7 @@ class MetaManifest:
                 manifest,
                 f,
             )
+        print(manifest)    
         return manifest
 
     def get_manifest(self):
@@ -186,10 +189,14 @@ class MetaManifest:
                 f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['dependencies']} \nplatform : {self.platform}"
             )
             
+            specs = []
+            for spec in self.env_deps["dependencies"]:
+                specs.append(f"{spec.name}={spec.version}")
             solution = LockWrapper.solve(
                 "conda",
                 self.env_deps["channels"],
-                specs=self.env_deps["dependencies"],
+                specs=specs,
+                #specs=self.env_deps["dependencies"],
                 platform=self.platform,
             )
             self.env_deps["solution"] = solution

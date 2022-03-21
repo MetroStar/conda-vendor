@@ -20,30 +20,17 @@ def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
 
     test_manifest_filename = "test_metamanifest.yaml"
     expected_manifest_path = tmp_path / test_manifest_filename
-    expected_packages = [
-            VersionedDependency(
-                name='python',
-                manager='conda',
-                optional=False,
-                category='main',
-                extras=[],
-                selectors=Selectors(platform=None),
-                version='3.9.5.*',
-                build=None), 
-            VersionedDependency(
-                name='conda-mirror',
-                manager='conda',
-                optional=False,
-                category='main',
-                extras=[],
-                selectors=Selectors(platform=None),
-                version='0.8.2.*',
-                build=None)]
+    expected_packages = ["python=3.9.5", "conda-mirror=0.8.2"]
 
+    # TODO: update for new Channel and Dependency objs
     def test_get_packages_from_manifest(meta_manifest, expected_packages):
         """
         Just a helper to make sure we got the packages we asked for
         """
+        print("meta_manifest")
+        print(meta_manifest)
+        print("expected_packages")
+        print(expected_packages)
         i_bank_pkg_list = []
         for channel_dict in meta_manifest.values():
             for platform_dict in channel_dict.values():
@@ -51,8 +38,12 @@ def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
                     name = package_dict["name"]
                     version = package_dict["version"]
                     dep_entry = f"{name}={version}"
+                    print("DEP_ENTRY")
+                    print(dep_entry)
+                    print(expected_packages)
                     if dep_entry in expected_packages:
                         i_bank_pkg_list.append(dep_entry)
+                
         return i_bank_pkg_list
 
     meta_manifest_from_env_yml(

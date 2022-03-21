@@ -81,14 +81,14 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
         "channels": [Channel(url="main")],
     }
     
-    print(test_meta_manifest.env_deps)
+    
     assert test_meta_manifest.platform is not None
     assert test_meta_manifest.manifest_root == expected_manifest_root
     assert test_meta_manifest.channels == [Channel(url="main")]
     TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
 
 
-# TODO: update to use Dependencies/VersionedDependencies
+
 def test_MetaManifest_init_fail(minimal_environment_defaults):
 
     with pytest.raises(
@@ -108,34 +108,34 @@ def test_MetaManifest_solve_environment(mock, meta_manifest_fixture):
     mock.assert_called_with(
         "conda",
         [Channel(url="main"), Channel(url="conda-forge")],
-        specs=[
-            VersionedDependency(
-                name='python',
-                manager='conda',
-                optional=False,
-                category='main',
-                extras=[],
-                selectors=Selectors(platform=None),
-                version='3.9.5.*',
-                build=None),
-            VersionedDependency(
-                name='conda-mirror',
-                manager='conda',
-                optional=False,
-                category='main',
-                extras=[],
-                selectors=Selectors(platform=None),
-                version='0.8.2.*',
-                build=None),
-            VersionedDependency(
-                name='pip',
-                manager='conda',
-                optional=False,
-                category='main',
-                extras=[],
-                selectors=Selectors(platform=None),
-                version='22.*',
-                build=None)],
+        specs=['python=3.9.5.*','conda-mirror=0.8.2.*','pip=22.*'],
+           # VersionedDependency(
+           #     name='python',
+           #     manager='conda',
+           #     optional=False,
+           #     category='main',
+           #     extras=[],
+           #     selectors=Selectors(platform=None),
+           #     version='3.9.5.*',
+           #     build=None),
+           # VersionedDependency(
+           #     name='conda-mirror',
+           #     manager='conda',
+           #     optional=False,
+           #     category='main',
+           #     extras=[],
+           #     selectors=Selectors(platform=None),
+           #     version='0.8.2.*',
+           #     build=None),
+           # VersionedDependency(
+           #     name='pip',
+           #     manager='conda',
+           #     optional=False,
+           #     category='main',
+           #     extras=[],
+           #     selectors=Selectors(platform=None),
+           #     version='22.*',
+           #     build=None)],
         platform=platform,
     )
     TestCase().assertDictEqual(result[0], expected[0])
