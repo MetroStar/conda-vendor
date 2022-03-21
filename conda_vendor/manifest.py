@@ -74,15 +74,10 @@ class MetaManifest:
 
         logger.info(f"Using Environment :{environment_yml}")
         
-        #TODO: update to use Channel obj instead of [str]
-        #bad_channels = ["nodefaults"]
         bad_channels = [Channel(url='nodefaults')]
-        #self.channels = [
-        #    chan for chan in self.env_deps["channels"] if chan.url not in bad_channels
-        #]
         self.channels = []
         for channel in self.env_deps["channels"]:
-            if channel.url == 'nodefaults':
+            if channel.url == 'defaults':
                 raise RuntimeError("default channels are not supported.")
             else:
                 self.channels.append(channel)

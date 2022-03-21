@@ -53,13 +53,11 @@ def test_LockWrapper_parse(mock):
     mock.assert_called_once_with("dummy_path.yaml")
 
 
-#TODO update to use Dependencies/VersionedDependencies
 def test_MetaManifest_init(minimal_environment, tmp_path):
     test_meta_manifest = MetaManifest(minimal_environment, manifest_root=tmp_path)
     expected_manifest_root = tmp_path
     expected_manifest = None
     expected_type = MetaManifest
-    # TODO: use Depencencies/VersionedDependencies
     python_dep = VersionedDependency(
             name='python',
             manager='conda',
@@ -91,12 +89,12 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
 
 
 # TODO: update to use Dependencies/VersionedDependencies
-#def test_MetaManifest_init_fail(minimal_environment_defaults):
-#
-#    with pytest.raises(
-#        RuntimeError, match=r"default channels are not supported."
-#    ) as error:
-#        MetaManifest(minimal_environment_defaults)
+def test_MetaManifest_init_fail(minimal_environment_defaults):
+
+    with pytest.raises(
+        RuntimeError, match=r"default channels are not supported."
+    ) as error:
+        MetaManifest(minimal_environment_defaults)
 
 
 #TODO: update to use Dependencies/VersionedDependencies
