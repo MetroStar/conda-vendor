@@ -8,9 +8,13 @@ The second is to create custom manifest files in order to satisfy security organ
 
 ## Installation
 
-To install with pip, run:
+To install with `pip`, run:
 
 	pip install conda-vendor
+
+
+To install with `conda` run:
+    conda install -c conda-forge conda-vendor
 
 
 ## Usage
