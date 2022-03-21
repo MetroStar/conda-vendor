@@ -13,42 +13,62 @@ from conda_vendor.cli import (
 )
 from conda_vendor.custom_manifest import IBManifest
 
+from conda_lock.src_parser import VersionedDependency, Selectors
+
 # TODO: update for Dependency/VersionedDependency
-#def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
-#
-#    test_manifest_filename = "test_metamanifest.yaml"
-#    expected_manifest_path = tmp_path / test_manifest_filename
-#    expected_packages = ["python=3.9.5", "conda-mirror=0.8.2"]
-#
-#    def test_get_packages_from_manifest(meta_manifest, expected_packages):
-#        """
-#        Just a helper to make sure we got the packages we asked for
-#        """
-#        i_bank_pkg_list = []
-#        for channel_dict in meta_manifest.values():
-#            for platform_dict in channel_dict.values():
-#                for package_dict in platform_dict["entries"]:
-#                    name = package_dict["name"]
-#                    version = package_dict["version"]
-#                    dep_entry = f"{name}={version}"
-#                    if dep_entry in expected_packages:
-#                        i_bank_pkg_list.append(dep_entry)
-#        return i_bank_pkg_list
-#
-#    meta_manifest_from_env_yml(
-#        minimal_conda_forge_environment, tmp_path, test_manifest_filename
-#    )
-#    with open(expected_manifest_path) as f:
-#        actual_manifest = YAML(typ="safe").load(
-#            f,
-#        )
-#
-#    assert "main" in actual_manifest.keys()
-#    assert "conda-forge" in actual_manifest.keys()
-#    result_packages = test_get_packages_from_manifest(
-#        actual_manifest, expected_packages
-#    )
-#    TestCase().assertCountEqual(result_packages, expected_packages)
+def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
+
+    test_manifest_filename = "test_metamanifest.yaml"
+    expected_manifest_path = tmp_path / test_manifest_filename
+    expected_packages = [
+            VersionedDependency(
+                name='python',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='3.9.5.*',
+                build=None), 
+            VersionedDependency(
+                name='conda-mirror',
+                manager='conda',
+                optional=False,
+                category='main',
+                extras=[],
+                selectors=Selectors(platform=None),
+                version='0.8.2.*',
+                build=None)]
+
+    def test_get_packages_from_manifest(meta_manifest, expected_packages):
+        """
+        Just a helper to make sure we got the packages we asked for
+        """
+        i_bank_pkg_list = []
+        for channel_dict in meta_manifest.values():
+            for platform_dict in channel_dict.values():
+                for package_dict in platform_dict["entries"]:
+                    name = package_dict["name"]
+                    version = package_dict["version"]
+                    dep_entry = f"{name}={version}"
+                    if dep_entry in expected_packages:
+                        i_bank_pkg_list.append(dep_entry)
+        return i_bank_pkg_list
+
+    meta_manifest_from_env_yml(
+        minimal_conda_forge_environment, tmp_path, test_manifest_filename
+    )
+    with open(expected_manifest_path) as f:
+        actual_manifest = YAML(typ="safe").load(
+            f,
+        )
+
+    assert "main" in actual_manifest.keys()
+    assert "conda-forge" in actual_manifest.keys()
+    result_packages = test_get_packages_from_manifest(
+        actual_manifest, expected_packages
+    )
+    TestCase().assertCountEqual(result_packages, expected_packages)
 
 # TODO: update for Dependency/VersionedDependency
 #def test_local_channels_from_meta_manifest(tmp_path, minimal_conda_forge_environment):
