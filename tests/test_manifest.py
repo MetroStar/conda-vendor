@@ -158,69 +158,69 @@ def test_get_purl(meta_manifest_fixture):
 
 
 # TODO: update to use Dependencies/VersionedDependencies
-#def test_get_manifest(meta_manifest_fixture):
-#    test_meta_manifest = meta_manifest_fixture
-#    platform = meta_manifest_fixture.platform
-#    test_fetch_entries = [
-#        {
-#            "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
-#            "name": "brotlipy",
-#            "version": "0.7.0",
-#            "channel": f"https://conda.anaconda.org/main/{platform}",
-#        },
-#        {
-#            "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
-#            "name": "ensureconda",
-#            "version": "1.4.1",
-#            "channel": "https://conda.anaconda.org/conda-forge/noarch",
-#        },
-#    ]
-#
-#    test_env_deps_solution = {
-#        "actions": {
-#            "FETCH": test_fetch_entries,
-#            "LINK": [],
-#        }
-#    }
-#
-#    test_meta_manifest.env_deps["solution"] = test_env_deps_solution
-#
-#    expected_manifest = {
-#        "main": {
-#            "noarch": {"repodata_url": None, "entries": []},
-#            f"{platform}": {
-#                "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
-#                "entries": [
-#                    {
-#                        "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
-#                        "name": "brotlipy",
-#                        "version": "0.7.0",
-#                        "channel": f"https://conda.anaconda.org/main/{platform}",
-#                        "purl": f"pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
-#                    }
-#                ],
-#            },
-#        },
-#        "conda-forge": {
-#            "noarch": {
-#                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
-#                "entries": [
-#                    {
-#                        "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
-#                        "name": "ensureconda",
-#                        "version": "1.4.1",
-#                        "channel": "https://conda.anaconda.org/conda-forge/noarch",
-#                        "purl": "pkg:conda/ensureconda@1.4.1?url=https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
-#                    }
-#                ],
-#            },
-#            f"{platform}": {"repodata_url": None, "entries": []},
-#        },
-#    }
-#
-#    actual_manifest = meta_manifest_fixture.get_manifest()
-#    TestCase().maxDiff = None
-#    TestCase().assertDictEqual(expected_manifest, actual_manifest)
+def test_get_manifest(meta_manifest_fixture):
+    test_meta_manifest = meta_manifest_fixture
+    platform = meta_manifest_fixture.platform
+    test_fetch_entries = [
+        {
+            "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+            "name": "brotlipy",
+            "version": "0.7.0",
+            "channel": f"https://conda.anaconda.org/main/{platform}",
+        },
+        {
+            "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+            "name": "ensureconda",
+            "version": "1.4.1",
+            "channel": "https://conda.anaconda.org/conda-forge/noarch",
+        },
+    ]
+
+    test_env_deps_solution = {
+        "actions": {
+            "FETCH": test_fetch_entries,
+            "LINK": [],
+        }
+    }
+
+    test_meta_manifest.env_deps["solution"] = test_env_deps_solution
+
+    expected_manifest = {
+        "main": {
+            "noarch": {"repodata_url": None, "entries": []},
+            f"{platform}": {
+                "repodata_url": f"https://conda.anaconda.org/main/{platform}/repodata.json",
+                "entries": [
+                    {
+                        "url": f"https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                        "name": "brotlipy",
+                        "version": "0.7.0",
+                        "channel": f"https://conda.anaconda.org/main/{platform}",
+                        "purl": f"pkg:conda/brotlipy@0.7.0?url=https://conda.anaconda.org/main/{platform}/brotlipy-0.7.0-py39h27cfd23_1003.tar.bz2",
+                    }
+                ],
+            },
+        },
+        "conda-forge": {
+            "noarch": {
+                "repodata_url": "https://conda.anaconda.org/conda-forge/noarch/repodata.json",
+                "entries": [
+                    {
+                        "url": "https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                        "name": "ensureconda",
+                        "version": "1.4.1",
+                        "channel": "https://conda.anaconda.org/conda-forge/noarch",
+                        "purl": "pkg:conda/ensureconda@1.4.1?url=https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.4.1-pyhd8ed1ab_0.tar.bz2",
+                    }
+                ],
+            },
+            f"{platform}": {"repodata_url": None, "entries": []},
+        },
+    }
+
+    actual_manifest = meta_manifest_fixture.get_manifest()
+    TestCase().maxDiff = None
+    TestCase().assertDictEqual(expected_manifest, actual_manifest)
 
 
 def test_get_manifest_filename(meta_manifest_fixture):

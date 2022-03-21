@@ -98,13 +98,8 @@ class MetaManifest:
 
     def add_pip_dependency(self):
         add_pip_dependency = self.add_pip_question_mark()
-
-        #WIP TODO: env_deps: List(VersionedDependency) handling
         
         if add_pip_dependency is True:
-            # WIP TODO add pip if List(VersionedDependency) contains python
-            # and create a new VersionedDependency for pip, then append it to 
-            # env_deps
             for versioned_dependency in self.env_deps["dependencies"]:
                 if versioned_dependency.name == 'python':
                     logger.info("python dependency found in dependencies, adding pip VersionedDependency")
@@ -151,21 +146,28 @@ class MetaManifest:
 
             d = nested_dict()
 
+            # a [{url, name, version, channel}]
             fetch_actions = self.solve_environment()
-
+            
             for chan in self.channels:  # edit to self.channels
+                #TODO: fix for Channel
                 d[chan]["noarch"] = {"repodata_url": None, "entries": []}
                 d[chan][self.platform] = {"repodata_url": None, "entries": []}
 
             for entry in fetch_actions:
                 (channel, platform) = entry["channel"].split("/")[-2:]
-
+                
                 d[channel][platform][
                     "repodata_url"
                 ] = f"{entry['channel']}/repodata.json"
                 entry["purl"] = self.get_purl(entry)
-                d[channel][platform]["entries"].append(entry)
 
+                # set entries to empty list
+                d[channel][platform]["entries"] = []
+                d[channel][platform]["entries"].append(entry)
+           
+            # TODO: handle Channel, which messes up json marshalling here...
+            print(json.loads(json.dumps(d)))
             # Turns nested default dict into normal python dict
             self.manifest = json.loads(json.dumps(d))
         return self.manifest
@@ -177,6 +179,7 @@ class MetaManifest:
         """
         return f"pkg:conda/{fetch_entry['name']}@{fetch_entry['version']}?url={fetch_entry['url']}"
 
+    # return FETCH actions only
     def solve_environment(self):
         if "solution" not in self.env_deps:
             logger.info(
@@ -191,6 +194,8 @@ class MetaManifest:
             self.env_deps["solution"] = solution
 
         logger.debug(f'Fetch results: {self.env_deps["solution"]["actions"]["FETCH"]}')
+        
+        # return a [url, name, version, channel}
         return self.env_deps["solution"]["actions"]["FETCH"]
 
 
