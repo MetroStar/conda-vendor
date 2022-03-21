@@ -11,6 +11,7 @@ import requests
 from conda_lock.conda_solver import solve_specs_for_arch
 from conda_lock.src_parser import VersionedDependency, Selectors
 from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.models.channel import Channel
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -73,13 +74,18 @@ class MetaManifest:
 
         logger.info(f"Using Environment :{environment_yml}")
         
-        #TODO: update to use Channel obj instead of [str
-        bad_channels = ["nodefaults"]
-        self.channels = [
-            chan for chan in self.env_deps["channels"] if chan not in bad_channels
-        ]
-        if "defaults" in self.channels:
-            raise RuntimeError("default channels are not supported.")
+        #TODO: update to use Channel obj instead of [str]
+        #bad_channels = ["nodefaults"]
+        bad_channels = [Channel(url='nodefaults')]
+        #self.channels = [
+        #    chan for chan in self.env_deps["channels"] if chan.url not in bad_channels
+        #]
+        self.channels = []
+        for channel in self.env_deps["channels"]:
+            if channel.url == 'nodefaults':
+                raise RuntimeError("default channels are not supported.")
+            else:
+                self.channels.append(channel)
 
         self.add_pip_dependency()
 

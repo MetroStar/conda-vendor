@@ -19,6 +19,7 @@ from unittest.mock import Mock, patch, call, mock_open
 from yaml import safe_load
 from yaml.loader import SafeLoader
 from conda_lock.src_parser import VersionedDependency, Selectors
+from conda_lock.models.channel import Channel
 import os
 
 
@@ -61,7 +62,7 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
     # TODO: use Depencencies/VersionedDependencies
     python_dep = VersionedDependency(
             name='python',
-            manager='conda'
+            manager='conda',
             optional=False,
             category='main',
             extras=[],
@@ -78,15 +79,15 @@ def test_MetaManifest_init(minimal_environment, tmp_path):
             version='22.*',
             build=None)
     expected_env_deps = {
-        "dependencies": ["python=3.9.5", "pip"],
-        "channels": ["main"],
+        "dependencies": [python_dep, pip_dep],
+        "channels": [Channel(url="main")],
     }
     
     print(test_meta_manifest.env_deps)
     assert test_meta_manifest.platform is not None
     assert test_meta_manifest.manifest_root == expected_manifest_root
-    assert test_meta_manifest.channels == ["main"]
-    #TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
+    assert test_meta_manifest.channels == [Channel(url="main")]
+    TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
 
 
 # TODO: update to use Dependencies/VersionedDependencies
