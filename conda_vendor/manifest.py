@@ -150,7 +150,9 @@ class MetaManifest:
             fetch_actions = self.solve_environment()
             
             for chan in self.channels:  # edit to self.channels
-                #TODO: fix for Channel
+                #the Channel class isn't serializable so we just grab the 
+                # url:
+                chan = chan.url
                 d[chan]["noarch"] = {"repodata_url": None, "entries": []}
                 d[chan][self.platform] = {"repodata_url": None, "entries": []}
 
@@ -166,8 +168,6 @@ class MetaManifest:
                 d[channel][platform]["entries"] = []
                 d[channel][platform]["entries"].append(entry)
            
-            # TODO: handle Channel, which messes up json marshalling here...
-            print(json.loads(json.dumps(d)))
             # Turns nested default dict into normal python dict
             self.manifest = json.loads(json.dumps(d))
         return self.manifest
@@ -185,6 +185,7 @@ class MetaManifest:
             logger.info(
                 f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['dependencies']} \nplatform : {self.platform}"
             )
+            
             solution = LockWrapper.solve(
                 "conda",
                 self.env_deps["channels"],
