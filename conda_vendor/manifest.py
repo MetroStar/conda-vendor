@@ -72,6 +72,8 @@ class MetaManifest:
         }
 
         logger.info(f"Using Environment :{environment_yml}")
+        
+        #TODO: update to use Channel obj instead of [str
         bad_channels = ["nodefaults"]
         self.channels = [
             chan for chan in self.env_deps["channels"] if chan not in bad_channels

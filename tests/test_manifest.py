@@ -18,6 +18,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, call, mock_open
 from yaml import safe_load
 from yaml.loader import SafeLoader
+from conda_lock.src_parser import VersionedDependency, Selectors
 import os
 
 
@@ -52,21 +53,40 @@ def test_LockWrapper_parse(mock):
 
 
 #TODO update to use Dependencies/VersionedDependencies
-#def test_MetaManifest_init(minimal_environment, tmp_path):
-#    test_meta_manifest = MetaManifest(minimal_environment, manifest_root=tmp_path)
-#    expected_manifest_root = tmp_path
-#    expected_manifest = None
-#    expected_type = MetaManifest
-#    # TODO: use Depencencies/VersionedDependencies
-#    expected_env_deps = {
-#        "dependencies": ["python=3.9.5", "pip"],
-#        "channels": ["main"],
-#    }
-#
-#    assert test_meta_manifest.platform is not None
-#    assert test_meta_manifest.manifest_root == expected_manifest_root
-#    assert test_meta_manifest.channels == ["main"]
-#    TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
+def test_MetaManifest_init(minimal_environment, tmp_path):
+    test_meta_manifest = MetaManifest(minimal_environment, manifest_root=tmp_path)
+    expected_manifest_root = tmp_path
+    expected_manifest = None
+    expected_type = MetaManifest
+    # TODO: use Depencencies/VersionedDependencies
+    python_dep = VersionedDependency(
+            name='python',
+            manager='conda'
+            optional=False,
+            category='main',
+            extras=[],
+            selectors=Selectors(platform=None),
+            version='3.9.5.*',
+            build=None)
+    pip_dep = VersionedDependency(
+            name='pip',
+            manager='conda',
+            optional=False,
+            category='main',
+            extras=[],
+            selectors=Selectors(platform=None),
+            version='22.*',
+            build=None)
+    expected_env_deps = {
+        "dependencies": ["python=3.9.5", "pip"],
+        "channels": ["main"],
+    }
+    
+    print(test_meta_manifest.env_deps)
+    assert test_meta_manifest.platform is not None
+    assert test_meta_manifest.manifest_root == expected_manifest_root
+    assert test_meta_manifest.channels == ["main"]
+    #TestCase().assertDictEqual(expected_env_deps, test_meta_manifest.env_deps)
 
 
 # TODO: update to use Dependencies/VersionedDependencies
