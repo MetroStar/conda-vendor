@@ -8,7 +8,7 @@ from ruamel.yaml import YAML
 from conda_vendor.conda_channel import CondaChannel
 from conda_vendor.manifest import MetaManifest
 
-
+# TODO: update fixtures for new manifest format defnied in manifest.py
 def get_conda_platform(platform=sys.platform):
     _platform_map = {
         "linux2": "linux",

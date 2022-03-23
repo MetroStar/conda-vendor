@@ -138,9 +138,13 @@ class MetaManifest:
                 manifest,
                 f,
             )
-        print(manifest)    
+        #import pprint
+        #import yaml
+        #pprint.pprint(yaml.dump(manifest))
         return manifest
 
+    # this function is what actually generates the 'meta-manifest' output 
+    # structure
     def get_manifest(self):
         if self.manifest is None:
 
@@ -149,30 +153,30 @@ class MetaManifest:
 
             d = nested_dict()
 
-            # a [{url, name, version, channel}]
+            #
             fetch_actions = self.solve_environment()
             
-            for chan in self.channels:  # edit to self.channels
-                #the Channel class isn't serializable so we just grab the 
-                # url:
-                chan = chan.url
-                d[chan]["noarch"] = {"repodata_url": None, "entries": []}
-                d[chan][self.platform] = {"repodata_url": None, "entries": []}
+            dependencies = []
+            #TODO: this needs more debugging...
+            for dep in fetch_actions:
+                # each entry in the results returned from solve_environment() has
+                # the following structure:
+                # {arch, build, build_number, channel, constraints, depends, fn,
+                #  license, md5, name, platform, sha256, size, subdir, timestamp,
+                #  url, version}
 
-            for entry in fetch_actions:
-                (channel, platform) = entry["channel"].split("/")[-2:]
-                
-                d[channel][platform][
-                    "repodata_url"
-                ] = f"{entry['channel']}/repodata.json"
-                entry["purl"] = self.get_purl(entry)
+                # only add the fields that we need. Update this as needed 
+                dependency_entry = {
+                        "name": dep["name"],
+                        "version": dep["version"],
+                        "sha256": dep["sha256"],
+                        "url": dep["url"]}
+                dependencies.append(dependency_entry)
 
-                # set entries to empty list
-                d[channel][platform]["entries"] = []
-                d[channel][platform]["entries"].append(entry)
-           
-            # Turns nested default dict into normal python dict
-            self.manifest = json.loads(json.dumps(d))
+            manifest_structure = {"dependencies": dependencies}
+            
+            self.manifest = manifest_structure
+
         return self.manifest
 
     def get_purl(self, fetch_entry):
@@ -189,21 +193,25 @@ class MetaManifest:
                 f"Solving ENV \nChannels : {self.env_deps['channels']} \nspecs : {self.env_deps['dependencies']} \nplatform : {self.platform}"
             )
             
+            # specs List(str) to pass to conda-lock 
             specs = []
+
             for spec in self.env_deps["dependencies"]:
                 specs.append(f"{spec.name}={spec.version}")
             solution = LockWrapper.solve(
                 "conda",
                 self.env_deps["channels"],
                 specs=specs,
-                #specs=self.env_deps["dependencies"],
                 platform=self.platform,
             )
+        
             self.env_deps["solution"] = solution
 
         logger.debug(f'Fetch results: {self.env_deps["solution"]["actions"]["FETCH"]}')
         
-        # return a [url, name, version, channel}
+        # returns [{arch, build, build_number, channel, constraints, depends, fn,
+        #           license, md5, name, platform, sha256, size, subdir, timestamp,
+        #           url, version}]
         return self.env_deps["solution"]["actions"]["FETCH"]
 
 
