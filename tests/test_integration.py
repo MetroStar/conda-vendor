@@ -2,9 +2,7 @@ import os
 import subprocess
 from unittest import TestCase
 from unittest.mock import Mock, patch
-
 from ruamel.yaml import YAML
-
 from conda_vendor.cli import (
     ironbank_from_meta_manifest,
     local_channels_from_meta_manifest,
@@ -14,10 +12,8 @@ from conda_vendor.cli import (
 from conda_vendor.custom_manifest import IBManifest
 
 from conda_lock.src_parser import VersionedDependency, Selectors
-
 import json
 
-# TODO: update for Dependency/VersionedDependency
 def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
 
     test_manifest_filename = "test_metamanifest.yaml"
