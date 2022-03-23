@@ -138,9 +138,6 @@ class MetaManifest:
                 manifest,
                 f,
             )
-        #import pprint
-        #import yaml
-        #pprint.pprint(yaml.dump(manifest))
         return manifest
 
     # this function is what actually generates the 'meta-manifest' output 

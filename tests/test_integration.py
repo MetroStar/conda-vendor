@@ -15,58 +15,49 @@ from conda_vendor.custom_manifest import IBManifest
 
 from conda_lock.src_parser import VersionedDependency, Selectors
 
+import json
+
 # TODO: update for Dependency/VersionedDependency
 def test_meta_manifest_from_env_yml(tmp_path, minimal_conda_forge_environment):
 
     test_manifest_filename = "test_metamanifest.yaml"
     expected_manifest_path = tmp_path / test_manifest_filename
-    expected_packages = ["python=3.9.5", "conda-mirror=0.8.2"]
+    
+    # see conftest.py minimal_conda_forge_environment fixture
+    expected_package_names = ["python-3.9.5", "conda-mirror-0.8.2"]
 
-    # TODO: update for new Channel and Dependency objs
-    def test_get_packages_from_manifest(meta_manifest, expected_packages):
+    # this is just a helper function to grab just the "names" 
+    # of each package to compare to our expected pinned packages
+    def test_get_packages_from_manifest(meta_manifest):
         """
         Just a helper to make sure we got the packages we asked for
         """
-        
         i_bank_pkg_list = []
-        # add dependencies from main
-        # WIP TODO: refactoring for updated yaml manifest output format
-        for platform_main in meta_manifest["main"]:
-            for entry_main in meta_manifest["main"][platform_main]["entries"]:
-                name = entry_main["name"]
-                version = entry_main["version"]
-                dep_entry = f"{name}={version}"
-                #print(f"DEP_ENTRY:{dep_entry}")
-                if dep_entry == "python=3.9.5" or dep_entry == "conda-mirror=0.8.2":
-                    i_bank_pkg_list.append(dep_entry)
-        # add dependencies from conda-forge
-        for platform_conda_forge in meta_manifest["conda-forge"]:
-            for entry_conda_forge in meta_manifest["conda-forge"][platform_conda_forge]["entries"]:
-                name = entry_conda_forge["name"]
-                version = entry_conda_forge["version"]
-                dep_entry = f"{name}={version}"
-                #print(f"DEP_ENTRY:{dep_entry}")
-                if dep_entry == "python=3.9.5" or dep_entry == "conda-mirror=0.8.2":
-                    i_bank_pkg_list.append(dep_entry)
-        
-        #print(i_bank_pkg_list)    
+        for dependency in meta_manifest["dependencies"]:
+            i_bank_pkg_list.append(dependency["name"])
         return i_bank_pkg_list
 
+    # create our meta manifest
     meta_manifest_from_env_yml(
         minimal_conda_forge_environment, tmp_path, test_manifest_filename
     )
+    
+    # write it out to yaml
     with open(expected_manifest_path) as f:
         actual_manifest = YAML(typ="safe").load(
             f,
         )
 
-    ## Ensure main and conda-forge channels are present in keys
-    assert "main" in actual_manifest.keys()
-    assert "conda-forge" in actual_manifest.keys()
-    result_packages = test_get_packages_from_manifest(
-        actual_manifest, expected_packages
-    )
-    TestCase().assertIn(result_packages, expected_packages)
+    ## Ensure main and conda-forge channels are present in manifest
+    assert "main" in json.dumps(actual_manifest)
+    assert "conda-forge" in json.dumps(actual_manifest)
+
+    # get a list of the "names" of each package in the manifest
+    result_packages = test_get_packages_from_manifest(actual_manifest)
+    
+    # check that our result_packages contains our expected_packages
+    for expected_pkg in expected_package_names:
+        assert expected_pkg in result_packages
     
     
 
