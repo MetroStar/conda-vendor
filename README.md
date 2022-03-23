@@ -31,6 +31,20 @@ Conda-vendor solves an environment with conda from an `environment.yaml` and det
 		
 The above command will output a `meta_manifest.yaml` file in the current directory. 
 
+Example `meta_manifest.yaml` format:
+```yaml
+dependencies:
+- name: bzip2-1.0.8
+  sha256: 60ba4c64f5d0afca0d283c7addba577d3e2efc0db86002808dadb0498661b2f2
+  url: https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h0d85af4_4.tar.bz2
+- name: tk-8.6.12
+  sha256: 331aa1137a264fd9cc905f04f09a161c801fe504b93da08b4e6697bd7c9ae6a6
+  url: https://conda.anaconda.org/conda-forge/osx-64/tk-8.6.12-h5dbffcc_0.tar.bz2
+- name: tzdata-2022a
+  sha256: 74d8c1fbccae1a78c9bd2b2d1cda73df425cc28717a637198c23bd1c9b53b60e
+  url: https://conda.anaconda.org/conda-forge/noarch/tzdata-2022a-h191b570_0.tar.bz2
+```
+
 ### Creating a Local Channel
 
 With a meta-manifest file created, conda-vendor can then create local channels. 

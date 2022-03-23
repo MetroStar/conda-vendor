@@ -167,8 +167,7 @@ class MetaManifest:
 
                 # only add the fields that we need. Update this as needed 
                 dependency_entry = {
-                        "name": dep["name"],
-                        "version": dep["version"],
+                        "name": f"{dep['name']}-{dep['version']}",
                         "sha256": dep["sha256"],
                         "url": dep["url"]}
                 dependencies.append(dependency_entry)
@@ -195,9 +194,9 @@ class MetaManifest:
             
             # specs List(str) to pass to conda-lock 
             specs = []
-
             for spec in self.env_deps["dependencies"]:
                 specs.append(f"{spec.name}={spec.version}")
+
             solution = LockWrapper.solve(
                 "conda",
                 self.env_deps["channels"],
