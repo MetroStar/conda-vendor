@@ -8,19 +8,25 @@ import sys
 from pathlib import Path
 from ruamel.yaml import YAML
 import requests
-from conda_lock.conda_lock import solve_specs_for_arch
+from conda_lock.conda_solver import solve_specs_for_arch
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
-
+# wrapper class around conda-locks environment file parser and spec solver
+# methods
 class LockWrapper:
+
+    # wrap conda_lock.src_parser parse_environment_file()
+    # in a static method
     @staticmethod
     def parse(*args):
         return parse_environment_file(*args)
 
+    # wrap conda_lock.conda_solver solve_specs_for_arch 
+    # in a static method
     @staticmethod
     def solve(*args, **kwargs):
         return solve_specs_for_arch(*args, **kwargs)
