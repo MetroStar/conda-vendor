@@ -1,8 +1,10 @@
 import click
 import yaml
+import sys
 from conda_vendor.version import __version__
 from conda_vendor.conda_lock_wrapper import CondaLockWrapper
 from conda_lock.src_parser import LockSpecification
+from conda_lock.conda_solver import DryRunInstall, VersionedDependency, FetchAction
 from pathlib import Path
 from typing import List
 
@@ -11,20 +13,27 @@ def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
     return lock_spec
 
-def solve_environment(lock_spec, solver, platform):
+def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
     specs = get_specs(lock_spec)
     
+    click.echo(f"Using Solver: {solver}")
     click.echo(f"Solving for Platform: {platform}")
     click.echo(f"Solving for Spec: {specs}")
     
-    solve = CondaLockWrapper.solve_specs_for_arch(
+    dry_run_install = CondaLockWrapper.solve_specs_for_arch(
             solver,
             lock_spec.channels,
             specs,
             platform)
 
-    #print(solve)
+    if not dry_run_install['success']:
+        sys.exit("Failed to Solve for {specs}\n Using {solver} for {platform}")
 
+    click.echo("Successfull Solve")
+
+    return dry_run_install
+
+# get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
 def get_specs(lock_spec) -> List:
     versioned_deps = lock_spec.dependencies
     specs = []
@@ -34,6 +43,13 @@ def get_specs(lock_spec) -> List:
         else:
             specs.append(f"{dep.name}=={dep.version}")
     return specs
+
+# Only return packages in the FETCH action, which
+# include all the entries form the packages repodata.json
+def get_fetch_actions(dry_run_install) -> FetchAction: 
+    fetch_actions = dry_run_install["actions"]["FETCH"]
+    return fetch_actions
+
 
 @click.group()
 @click.version_option(__version__)
@@ -45,7 +61,7 @@ def main() -> None:
 @click.option(
     "--file",
     default=None, 
-    help="Path to environment.yaml or conda-lock.yaml")
+    help="Path to environment.yaml")
 @click.option(
     "--solver",
     default="conda",
@@ -63,8 +79,9 @@ def vendor(file,solver, platform):
     environment_yaml = Path(file)
     lock_spec = get_lock_spec_for_environment_file(environment_yaml)
     
-    #click.echo(lock_spec)
-    solve_environment(lock_spec, solver, platform)
+    dry_run_install = solve_environment(lock_spec, solver, platform)
+    
+    fetch_action_packages = get_fetch_actions(dry_run_install)
 
 
 
