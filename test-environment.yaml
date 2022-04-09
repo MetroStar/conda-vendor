@@ -4,13 +4,13 @@ channels:
   - main
 dependencies:
   - python=3.10.*
-  - conda-lock
+  - conda-lock=1.*
   - pip
   - pytest
   - pytest-mock
-  - pip:
-    - wheel
-    - setuptools
+  #- pip:
+  #  - wheel
+  #  - setuptools
    
 
 

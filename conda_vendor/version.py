@@ -1,5 +1,6 @@
-__version__ = "0.1.15"
+import click
 
+__version__ = "1.0.0"
 
 if __name__ == "__main__":
-    print(__version__, end="")
+    click.echo(__version__)
