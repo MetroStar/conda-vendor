@@ -1,6 +1,7 @@
 import click
 import yaml
 import sys
+import struct
 from conda_vendor.version import __version__
 from conda_vendor.conda_lock_wrapper import CondaLockWrapper
 from conda_lock.src_parser import LockSpecification
@@ -51,6 +52,26 @@ def get_fetch_actions(dry_run_install) -> FetchAction:
     return fetch_actions
 
 
+#see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
+def get_conda_platform(
+    platform=sys.platform,
+    custom_platform=None,
+    ) -> str:
+
+    if custom_platform is not None:
+        return custom_platform
+
+    _platform_map = {
+        "linux2": "linux",
+        "linux": "linux",
+        "darwin": "osx",
+        "win32": "win",
+        "zos": "zos",
+    }
+
+    bits = struct.calcsize("P") * 8
+    return f"{_platform_map[platform]}-{bits}"
+
 @click.group()
 @click.version_option(__version__)
 def main() -> None:
@@ -69,7 +90,7 @@ def main() -> None:
 @click.option(
     "--platform",
     "-p",
-    default="linux-64", # TODO: add in fn to solve platform
+    default=get_conda_platform(),
     help="Platform to solve for.")
 def vendor(file,solver, platform):
 
