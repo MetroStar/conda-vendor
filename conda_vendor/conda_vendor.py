@@ -4,6 +4,7 @@ import sys
 import struct
 import os
 import requests
+import hashlib
 from conda_vendor.version import __version__
 from conda_vendor.conda_lock_wrapper import CondaLockWrapper
 from conda_lock.src_parser import LockSpecification
@@ -115,11 +116,13 @@ def improved_download(url):
     return session.get(url)
 
 def download_solved_pkgs(fetch_action_pkgs, vendored_path, platform):
+    click.echo("Downloading and Verifying SHA256 Checksums for Solved Packages")
     for pkg in fetch_action_pkgs:
         if pkg['subdir'] == 'noarch':
             noarch_path = os.path.join(vendored_path, 'noarch')
             response = improved_download(pkg['url'])
             content = response.content
+            compare_sha256(content, pkg['sha256'])
             # TODO: handle Windows paths
             with open(f"{noarch_path}/{pkg['fn']}", "wb") as conda_pkg:
                 conda_pkg.write(content)
@@ -127,9 +130,16 @@ def download_solved_pkgs(fetch_action_pkgs, vendored_path, platform):
             platform_path = os.path.join(vendored_path, platform)
             response = improved_download(pkg['url'])
             content = response.content
+            compare_sha256(content, pkg['sha256'])
             # TODO: handle Windows paths
             with open(f"{platform_path}/{pkg['fn']}", "wb") as conda_pkg:
                 conda_pkg.write(content)
+
+def compare_sha256(byte_array, fetch_action_sha256):
+    calculated_sha256 = hashlib.sha256(byte_array).hexdigest()
+    if calculated_sha256 != fetch_action_sha256:
+        raise RuntimeError(f"Calculated SHA256 does not match repodata.json SHA256")
+        sys.exit("SHA256 Checksum Validation Failed")
 
 #see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(
@@ -190,9 +200,11 @@ def vendor(file,solver, platform):
     fetch_action_packages = get_fetch_actions(dry_run_install)
     for pkg in fetch_action_packages:
         click.echo("========================================================================")
-        click.echo(f"Package: {pkg['fn']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
+        click.echo(f"Package: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
         click.echo("========================================================================")
     download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
+
+    click.echo(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}") 
 
 main.add_command(vendor)
 
