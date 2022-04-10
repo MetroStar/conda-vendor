@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+from conda_build import api
 
 def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
@@ -88,6 +89,7 @@ def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
 
     return dry_run_install
 
+
 # get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
 def get_specs(lock_spec) -> List[VersionedDependency]:
     versioned_deps = lock_spec.dependencies
@@ -99,11 +101,19 @@ def get_specs(lock_spec) -> List[VersionedDependency]:
             specs.append(f"{dep.name}=={dep.version}")
     return specs
 
+
 # Only return packages in the FETCH action, which
 # include all the entries form the packages repodata.json
-def get_fetch_actions(dry_run_install) -> List[FetchAction]:
-    fetch_actions = dry_run_install["actions"]["FETCH"]
+def get_fetch_actions(solver, platform, dry_run_install) -> List[FetchAction]:
+    patched_dry_run_install = patch_link_actions(solver, platform, dry_run_install)
+    fetch_actions = patched_dry_run_install["actions"]["FETCH"]
     return fetch_actions
+
+
+# append DryRunInstall witn LINK action items
+def patch_link_actions(solver, platform, dry_run_install) -> DryRunInstall:
+    patched_dry_run_install = CondaLockWrapper.reconstruct_fetch_actions(solver, platform, dry_run_install)
+    return patched_dry_run_install
 
 
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
@@ -197,7 +207,7 @@ def vendor(file,solver, platform):
     # List[FetchAction]
     # a FetchAction object includes all the entries from the corresponding
     # package's repodata.json
-    fetch_action_packages = get_fetch_actions(dry_run_install)
+    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
     for pkg in fetch_action_packages:
         click.echo("========================================================================")
         click.echo(f"Package: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
@@ -205,6 +215,9 @@ def vendor(file,solver, platform):
     download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
 
     click.echo(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}") 
+    
+    # index vendored channel and generate metadata using conda-build's api
+    api.update_index(vendored_dir_path, progress=True)
 
 main.add_command(vendor)
 

@@ -1,5 +1,5 @@
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.conda_solver import solve_specs_for_arch
+from conda_lock.conda_solver import solve_specs_for_arch, _reconstruct_fetch_actions
 
 # Wrapper class around certain conda-lock functions
 class CondaLockWrapper:
@@ -14,3 +14,7 @@ class CondaLockWrapper:
     def solve_specs_for_arch(*args):
         return solve_specs_for_arch(*args)
 
+    # patch our repodata.json with LINK actions
+    @staticmethod
+    def reconstruct_fetch_actions(*args):
+        return _reconstruct_fetch_actions(*args)
