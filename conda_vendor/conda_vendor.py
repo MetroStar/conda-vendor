@@ -117,7 +117,7 @@ def main() -> None:
     """Display help and usage for subcommands, use: conda-vendor [COMMAND] --help"""
     pass
 
-@click.command("vendor", help="Vendor a local channel given an environment file")
+@click.command("vendor", help="Vendor dependencies into a local channel, given an environment file")
 @click.option(
     "--file",
     default=None, 
@@ -137,15 +137,15 @@ def vendor(file,solver, platform):
     
     # handle environment.yaml
     environment_yaml = Path(file)
+
     create_vendored_dir(environment_yaml, platform)
 
     lock_spec = get_lock_spec_for_environment_file(environment_yaml)
     
-
     dry_run_install = solve_environment(lock_spec, solver, platform)
     
     fetch_action_packages = get_fetch_actions(dry_run_install)
-
+    
 
 main.add_command(vendor)
 
