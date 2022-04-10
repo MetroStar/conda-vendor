@@ -1,4 +1,5 @@
 *.pyc
 /dist
 conda_vendor.egg-info/
-/build 
+/build
+/conda-vendor-dependencies

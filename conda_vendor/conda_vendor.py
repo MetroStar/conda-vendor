@@ -74,7 +74,7 @@ def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
     return dry_run_install
 
 # get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
-def get_specs(lock_spec) -> List:
+def get_specs(lock_spec) -> List[VersionedDependency]:
     versioned_deps = lock_spec.dependencies
     specs = []
     for dep in versioned_deps:
@@ -86,7 +86,7 @@ def get_specs(lock_spec) -> List:
 
 # Only return packages in the FETCH action, which
 # include all the entries form the packages repodata.json
-def get_fetch_actions(dry_run_install) -> FetchAction: 
+def get_fetch_actions(dry_run_install) -> List[FetchAction]:
     fetch_actions = dry_run_install["actions"]["FETCH"]
     return fetch_actions
 
@@ -144,6 +144,7 @@ def vendor(file,solver, platform):
     
     dry_run_install = solve_environment(lock_spec, solver, platform)
     
+    # List[FetchAction]
     fetch_action_packages = get_fetch_actions(dry_run_install)
     
 
