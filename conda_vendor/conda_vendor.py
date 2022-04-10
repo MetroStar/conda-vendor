@@ -3,12 +3,15 @@ import yaml
 import sys
 import struct
 import os
+import requests
 from conda_vendor.version import __version__
 from conda_vendor.conda_lock_wrapper import CondaLockWrapper
 from conda_lock.src_parser import LockSpecification
 from conda_lock.conda_solver import DryRunInstall, VersionedDependency, FetchAction
 from pathlib import Path
 from typing import List
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
@@ -16,7 +19,7 @@ def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
 
 
 # create the vendored channel directory, given the name in the environment.yaml
-def create_vendored_dir(environment_file, platform, desired_path=None):
+def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
     with open(environment_file, 'r') as env_file:
         try:
             environment_yaml = yaml.safe_load(env_file)
@@ -32,9 +35,20 @@ def create_vendored_dir(environment_file, platform, desired_path=None):
             os.mkdir(path)
             create_platform_dir(path, platform)
             create_noarch_dir(path)
+            return path
         except FileExistsError as err:
             click.echo(err)
             sys.exit(f"Directory \"{environment_name}\" already exists")
+    else:
+        try:
+            path = os.path.join(desired_path, environment_name)
+            os.mkdir(path)
+            create_platform_dir(path, platform)
+            create_noarch_dir(path)
+            return path
+        except FileExistsError as err:
+            click.echo(err)
+            sys.exit(f"Directory \"{desired_path}/{environment_name}\" already exists")
 
 def create_platform_dir(path, platform):
     try:
@@ -91,6 +105,32 @@ def get_fetch_actions(dry_run_install) -> List[FetchAction]:
     return fetch_actions
 
 
+# see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
+def improved_download(url):
+    session = requests.Session()
+    retry = Retry(connect=5, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session.get(url)
+
+def download_solved_pkgs(fetch_action_pkgs, vendored_path, platform):
+    for pkg in fetch_action_pkgs:
+        if pkg['subdir'] == 'noarch':
+            noarch_path = os.path.join(vendored_path, 'noarch')
+            response = improved_download(pkg['url'])
+            content = response.content
+            # TODO: handle Windows paths
+            with open(f"{noarch_path}/{pkg['fn']}", "wb") as conda_pkg:
+                conda_pkg.write(content)
+        else:
+            platform_path = os.path.join(vendored_path, platform)
+            response = improved_download(pkg['url'])
+            content = response.content
+            # TODO: handle Windows paths
+            with open(f"{platform_path}/{pkg['fn']}", "wb") as conda_pkg:
+                conda_pkg.write(content)
+
 #see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
 def get_conda_platform(
     platform=sys.platform,
@@ -138,15 +178,21 @@ def vendor(file,solver, platform):
     # handle environment.yaml
     environment_yaml = Path(file)
 
-    create_vendored_dir(environment_yaml, platform)
+    vendored_dir_path = create_vendored_dir(environment_yaml, platform)
 
     lock_spec = get_lock_spec_for_environment_file(environment_yaml)
     
     dry_run_install = solve_environment(lock_spec, solver, platform)
     
     # List[FetchAction]
+    # a FetchAction object includes all the entries from the corresponding
+    # package's repodata.json
     fetch_action_packages = get_fetch_actions(dry_run_install)
-    
+    for pkg in fetch_action_packages:
+        click.echo("========================================================================")
+        click.echo(f"Package: {pkg['fn']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
+        click.echo("========================================================================")
+    download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
 
 main.add_command(vendor)
 
