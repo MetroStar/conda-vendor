@@ -5,6 +5,7 @@ import struct
 import os
 import requests
 import hashlib
+import json
 from conda_vendor.version import __version__
 from conda_vendor.conda_lock_wrapper import CondaLockWrapper
 from conda_lock.src_parser import LockSpecification
@@ -116,6 +117,32 @@ def patch_link_actions(solver, platform, dry_run_install) -> DryRunInstall:
     return patched_dry_run_install
 
 
+# reconstruct repodata.json for subdirs
+def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
+    repo_data = {
+        "info": {"subdir": dest_dir},
+        "packages": {},
+        "packages.conda": {},
+    }
+    
+    valid_names = [pkg["fn"] for pkg in fetch_actions]
+
+    live_repodata_json = improved_download(repodata_url).json()
+    if live_repodata_json.get("packages"):
+        for name, entry in live_repodata_json["packages"].items():
+            if name in valid_names:
+                repo_data["packages"][name] = entry
+
+    if live_repodata_json.get("packages.conda"):
+        for name, entry in live_repodata_json["packages.conda"].items():
+            if name in valid_names:
+                repo_data["packages.conda"][name] = entry
+
+    # write to destination
+    dest_file = Path(f"{dest_dir}/repodata.json")
+    with dest_file.open("w") as f:
+        json.dump(repo_data, f)
+
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def improved_download(url):
     session = requests.Session()
@@ -201,23 +228,36 @@ def vendor(file,solver, platform):
     vendored_dir_path = create_vendored_dir(environment_yaml, platform)
 
     lock_spec = get_lock_spec_for_environment_file(environment_yaml)
-    
+
     dry_run_install = solve_environment(lock_spec, solver, platform)
     
     # List[FetchAction]
     # a FetchAction object includes all the entries from the corresponding
     # package's repodata.json
     fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
+    channels = []
+    subdirs = []
     for pkg in fetch_action_packages:
+        channels.append(pkg["channel"])
+        subdirs.append(pkg["subdir"])
         click.echo("========================================================================")
-        click.echo(f"Package: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
+        click.echo(f"Channel: {pkg['channel']}\nPackage: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}")
         click.echo("========================================================================")
-    download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
-
-    click.echo(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}") 
     
-    # index vendored channel and generate metadata using conda-build's api
-    api.update_index(vendored_dir_path, progress=True)
+    # repodata.json
+    channels = list(set(channels))
+    subdirs = list(set(subdirs))
+    for channel in channels:
+        for subdir in subdirs:
+            if subdir in channel:
+                click.echo(f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json")
+                reconstruct_repodata_json(f"{channel}/repodata.json", f"{vendored_dir_path}/{subdir}", fetch_action_packages)
+        
+    
+    # download and verify packages to appropriate subdir
+    download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform) 
+    click.echo(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}")
+    
 
 main.add_command(vendor)
 

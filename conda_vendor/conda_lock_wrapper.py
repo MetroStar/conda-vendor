@@ -1,5 +1,5 @@
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.conda_solver import solve_specs_for_arch, _reconstruct_fetch_actions
+from conda_lock.conda_solver import solve_specs_for_arch, _reconstruct_fetch_actions, solve_conda
 
 # Wrapper class around certain conda-lock functions
 class CondaLockWrapper:
@@ -18,3 +18,8 @@ class CondaLockWrapper:
     @staticmethod
     def reconstruct_fetch_actions(*args):
         return _reconstruct_fetch_actions(*args)
+
+    @staticmethod
+    def solve_conda(*args):
+        return solve_conda(*args)
+

@@ -34,3 +34,10 @@ conda-vendor vendor --file environment.yaml --solver mamba --platform osx-64
 conda-vendor vendor --file environment.yaml --solver micromamba
 ```
 
+Use Dry-Run install to verify that conda can solve using only the vendored channel:
+```bash
+# NOTE: ensure to use the same solver used to create the vendored channel
+# example channel vendored with mamba: that includes micromamba python and pip
+mamba create -n some-new-env --offline --channel ./my-vendored-channel --override-channels --dry-run micromamba python pip 
+```
+
