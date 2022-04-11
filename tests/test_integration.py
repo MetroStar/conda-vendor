@@ -8,7 +8,8 @@ from click.testing import CliRunner
 from conda_vendor.conda_vendor import (
         hotfix_vendored_repodata_json,
         get_lock_spec_for_environment_file,
-        solve_environment)
+        solve_environment,
+        get_fetch_actions)
 
 # vendor command
 from conda_vendor.conda_vendor import vendor
@@ -44,3 +45,15 @@ def test_solve_environment(lock_spec_fixture):
             'linux-64',
             )
     assert dry_run_install['success'] == True
+
+
+# this integration test runs the 
+# get_fetch_actions function which takes a DryRunInstall from a conda-lock solve,
+# and subsequently run the patch_link_actions function to patch our DryRunInstall
+# by converting the LINK actions to FETCH actions
+def test_fetch_actions(dry_run_install_fixture):
+    solver = "conda"
+    platform = "linux-64"
+    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install_fixture)
+    assert any(fetch_action['name'] == 'python' for fetch_action in fetch_action_packages)
+    assert any(fetch_action['version'] == '3.9.5' for fetch_action in fetch_action_packages)
