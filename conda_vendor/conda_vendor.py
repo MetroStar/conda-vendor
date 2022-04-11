@@ -15,7 +15,7 @@ from typing import List
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from conda_build import api
-from conda_vendor.iron_bank_generator import pretty_print_ironbank_manifest 
+from conda_vendor.iron_bank_generator import yaml_dump_ironbank_manifest 
 
 def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
@@ -313,7 +313,7 @@ def ironbank_gen(file, solver, platform):
     # package's repodata.json
     fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
 
-    pretty_print_ironbank_manifest(fetch_action_packages)
+    yaml_dump_ironbank_manifest(fetch_action_packages)
    
 main.add_command(vendor)
 main.add_command(ironbank_gen)
