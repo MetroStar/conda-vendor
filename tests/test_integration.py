@@ -12,7 +12,8 @@ from conda_vendor.conda_vendor import (
         get_fetch_actions,
         reconstruct_repodata_json,
         create_platform_dir,
-        create_noarch_dir)
+        create_noarch_dir,
+        download_solved_pkgs)
 
 # vendor command
 from conda_vendor.conda_vendor import vendor
@@ -71,3 +72,12 @@ def test_hotfix_vendored_repodata_json(fetch_action_packages_fixture, tmpdir):
     hotfix_vendored_repodata_json(fetch_action_packages_fixture, temp_vendored_dir)
     assert os.path.exists(f"{temp_vendored_dir}/noarch/repodata.json")
     assert os.path.exists(f"{temp_vendored_dir}/linux-64/repodata.json")
+
+
+# this integration test runs the download_solved_pkgs fn
+def test_download_solved_pkgs(fetch_action_packages_fixture, tmpdir):
+    download_dir = tmpdir.mkdir("test-download-target")
+    create_platform_dir(download_dir, "linux-64")
+    create_noarch_dir(download_dir)
+    download_solved_pkgs(fetch_action_packages_fixture, download_dir, "linux-64")
+    assert any('python' in pkg_fn for pkg_fn in os.listdir(f"{download_dir}/linux-64"))

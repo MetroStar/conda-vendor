@@ -26,6 +26,11 @@ Install conda-vendor as an editable pip package:
 pip install -e .
 ```
 
+Running Tests:
+```bash
+pytest tests/ -vvv -s
+```
+
 ## Usage
 
 #### Supported Solvers
