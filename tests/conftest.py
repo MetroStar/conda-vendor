@@ -3,14 +3,16 @@ import sys
 import pytest
 import json
 import os
+from typing import List
 from unittest.mock import Mock
 from ruamel.yaml import YAML
 from conda_vendor.conda_vendor import (
         get_conda_platform,
         get_lock_spec_for_environment_file,
         solve_environment,
+        get_fetch_actions,
         )
-from conda_lock.conda_solver import DryRunInstall
+from conda_lock.conda_solver import DryRunInstall, VersionedDependency, FetchAction
 from conda_lock.src_parser import LockSpecification
 # Test Fixtures
 
@@ -67,9 +69,18 @@ def lock_spec_fixture(python_conda_mirror_main_conda_forge_environment) -> LockS
 # conda-lock's DryRunInstall object
 @pytest.fixture(scope="function")
 def dry_run_install_fixture(lock_spec_fixture) -> DryRunInstall:
-    dry_run_install = solve_environment(lock_spec_fixture, "conda", "linux-64")
+    solver = "conda"
+    platform = "linux-64"
+    dry_run_install = solve_environment(lock_spec_fixture, solver, platform)
     return dry_run_install
 
+# conda-lock's List(FetchAction)
+@pytest.fixture(scope="function")
+def fetch_action_packages_fixture(dry_run_install_fixture) -> List[FetchAction]:
+    solver = "conda"
+    platform = "linux-64"
+    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install_fixture)
+    return fetch_action_packages
 
 def mock_response(
     status=200, content=b"CONTENT", json_data=None, raise_for_status=None
