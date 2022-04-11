@@ -245,7 +245,11 @@ def main() -> None:
     "--dry-run",
     default=False,
     help="Dry Run. Doesn't Download Packages - Returns Formatted JSON of FETCH Action Packages")
-def vendor(file,solver, platform, dry_run):
+@click.option(
+    "--ironbank-gen",
+    default=False,
+    help="Display IronBank Resources formatted text to STDOUT")
+def vendor(file,solver, platform, dry_run, ironbank_gen):
 
     click.echo(click.style(f"Vendoring Local Channel for file: {file}", fg='green'))
     
@@ -282,6 +286,10 @@ def vendor(file,solver, platform, dry_run):
         click.echo(click.style("Dry Run Complete!", bold=True, fg='red'))
         json_formatted_packages = json.dumps(fetch_action_packages, indent=4)
         click.echo(click.style(json_formatted_packages, fg='green'))
+    
+    if ironbank_gen:
+        click.echo(click.style("Generating IronBank Resources Formatted Text Below:", bold=True, fg='cyan'))
+        yaml_dump_ironbank_manifest(fetch_action_packages)
 
 @click.command("ironbank-gen", help="Generate Formatted Text to use in IronBank's Hardening Manifest")
 @click.option(
