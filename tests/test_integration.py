@@ -1,5 +1,5 @@
 import os
-import subprocess
+import subprocess 
 import json
 from unittest import TestCase
 from unittest.mock import Mock, patch
@@ -30,6 +30,19 @@ def test_vendor_dry_run(python_main_defaults_environment):
     fetch_actions = json.loads(json_output)
     assert any(pkg['name'] == 'python' for pkg in fetch_actions)
     assert not any(pkg['name'] == 'tensorflow' for pkg in fetch_actions)
+
+
+# full run through and dry-run install using vendored channel
+# NOTE this test expects that 'mamba' is in your path, if you need to, 
+# uncomment the skip decorator
+#@pytest.mark.skip(reason="mamba is not installed or in $PATH")
+def test_vendor_full_runthrough(python_main_defaults_environment, tmpdir):
+    test_path = tmpdir.mkdir("full-runthrough")
+    os.chdir(test_path)
+
+    runner = CliRunner()
+    vendor_result = runner.invoke(vendor, ['--file', python_main_defaults_environment, '--solver', 'mamba'])
+    assert vendor_result.exit_code == 0
 
 
 # test that the LockSpecification object returned from 
