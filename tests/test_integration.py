@@ -7,7 +7,8 @@ from ruamel.yaml import YAML
 from click.testing import CliRunner
 from conda_vendor.conda_vendor import (
         hotfix_vendored_repodata_json,
-        get_lock_spec_for_environment_file)
+        get_lock_spec_for_environment_file,
+        solve_environment)
 
 # vendor command
 from conda_vendor.conda_vendor import vendor
@@ -33,3 +34,13 @@ def test_get_lock_spec_for_environmen_file(python_conda_mirror_main_conda_forge_
     lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment)
     assert any(versioned_dep.name == 'python' for versioned_dep in lock_spec.dependencies)
     assert any(versioned_dep.version == '3.9.5.*' for versioned_dep in lock_spec.dependencies)
+
+# test that solve_environment's DryRunInstall object's 
+# 'success' field is True
+def test_solve_environment(lock_spec_fixture):
+    dry_run_install = solve_environment(
+            lock_spec_fixture,
+            'conda',
+            'linux-64',
+            )
+    assert dry_run_install['success'] == True

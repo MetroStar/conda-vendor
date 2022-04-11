@@ -5,9 +5,12 @@ import json
 import os
 from unittest.mock import Mock
 from ruamel.yaml import YAML
-from conda_vendor.conda_vendor import get_conda_platform
+from conda_vendor.conda_vendor import (
+        get_conda_platform,
+        get_lock_spec_for_environment_file
+        )
 from conda_lock.conda_solver import DryRunInstall
-
+from conda_lock.src_parser import LockSpecification
 # Test Fixtures
 
 
@@ -54,11 +57,11 @@ dependencies:
     fn.write(content)
     return fn
 
+# conda-locks LockSpecification object
 @pytest.fixture(scope="function")
-def fetch_actions_packages():
-    fetch_actions_json = open('tests/test-fixtures/fetch-actions-fixture.json')
-    fetch_actions = json.load(fetch_actions_json)
-    return json.loads(fetch_actions)
+def lock_spec_fixture(python_conda_mirror_main_conda_forge_environment) -> LockSpecification:
+    lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment)
+    return lock_spec
 
 def mock_response(
     status=200, content=b"CONTENT", json_data=None, raise_for_status=None
