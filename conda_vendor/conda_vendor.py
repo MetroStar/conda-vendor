@@ -183,10 +183,7 @@ def compare_sha256(byte_array, fetch_action_sha256):
         sys.exit("SHA256 Checksum Validation Failed")
 
 #see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
-def get_conda_platform(
-    platform=sys.platform,
-    custom_platform=None,
-    ) -> str:
+def get_conda_platform(platform=sys.platform, custom_platform=None) -> str:
 
     if custom_platform is not None:
         return custom_platform
@@ -243,15 +240,22 @@ def main() -> None:
     "-p",
     default=get_conda_platform(),
     help="Platform to solve for.")
-def vendor(file,solver, platform):
+@click.option(
+    "--dry-run",
+    default=False,
+    help="Dry Run. Doesn't Download Packages - Returns Formatted JSON of FETCH Action Packages")
+def vendor(file,solver, platform, dry_run):
 
     click.echo(click.style(f"Vendoring Local Channel for file: {file}", fg='green'))
     
     # handle environment.yaml
     environment_yaml = Path(file)
 
-    # create vendored channel directory
-    vendored_dir_path = create_vendored_dir(environment_yaml, platform)
+    # create vendored channel directory if dry_run=False
+    if not dry_run:
+        vendored_dir_path = create_vendored_dir(environment_yaml, platform)
+    else:
+        click.echo(click.style("Dry Run - Will Not Download Files", bold=True, fg='red'))
 
     # generate conda-locks LockSpecification
     lock_spec = get_lock_spec_for_environment_file(environment_yaml)
@@ -265,14 +269,18 @@ def vendor(file,solver, platform):
     fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
     
     # generate hotfix repodata.json for each channel and subdir
-    hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path)
+    if not dry_run:
+        hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path)
        
-    # download and verify packages to appropriate subdir
-    download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform) 
-    click.echo(click.style(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}", bold=True, fg='green'))
+        # download and verify packages to appropriate subdir
+        download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform) 
+        click.echo(click.style(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}", bold=True, fg='green'))
     
-    click.echo(click.style(f"Vendoring Complete!\nVendored Channel: {vendored_dir_path}", bold=True, fg='green'))
-
+        click.echo(click.style(f"Vendoring Complete!\nVendored Channel: {vendored_dir_path}", bold=True, fg='green'))
+    else:
+        click.echo(click.style("Dry Run Complete!", bold=True, fg='red'))
+        json_formatted_packages = json.dumps(fetch_action_packages, indent=4)
+        click.echo(click.style(json_formatted_packages, fg='green'))
 
 main.add_command(vendor)
 
