@@ -15,6 +15,7 @@ from typing import List
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from conda_build import api
+from conda_vendor.iron_bank_generator import pretty_print_ironbank_manifest 
 
 def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
@@ -92,7 +93,7 @@ def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
 
 
 # get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
-def get_specs(lock_spec) -> List[VersionedDependency]:
+def get_specs(lock_spec) -> List[str]:
     versioned_deps = lock_spec.dependencies
     specs = []
     for dep in versioned_deps:
@@ -282,7 +283,40 @@ def vendor(file,solver, platform, dry_run):
         json_formatted_packages = json.dumps(fetch_action_packages, indent=4)
         click.echo(click.style(json_formatted_packages, fg='green'))
 
+@click.command("ironbank-gen", help="Generate Formatted Text to use in IronBank's Hardening Manifest")
+@click.option(
+    "--file",
+    default=None, 
+    help="Path to environment.yaml")
+@click.option(
+    "--solver",
+    default="conda",
+    help="Solver to use. conda, mamba, micromamba")
+@click.option(
+    "--platform",
+    "-p",
+    default=get_conda_platform(),
+    help="Platform to solve for.")
+def ironbank_gen(file, solver, platform):
+    click.echo(click.style("Generating Formatted Text for IronBank Hardening Manifest", bold=True, fg='green'))
+     # handle environment.yaml
+    environment_yaml = Path(file)
+
+    # generate conda-locks LockSpecification
+    lock_spec = get_lock_spec_for_environment_file(environment_yaml)
+
+    # generate DryRunInstall
+    dry_run_install = solve_environment(lock_spec, solver, platform)
+    
+    # generate List[FetchAction]
+    # a FetchAction object includes all the entries from the corresponding
+    # package's repodata.json
+    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
+
+    pretty_print_ironbank_manifest(fetch_action_packages)
+   
 main.add_command(vendor)
+main.add_command(ironbank_gen)
 
 if __name__ == "main":
     main()
