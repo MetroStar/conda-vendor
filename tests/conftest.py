@@ -1,9 +1,12 @@
 import struct
 import sys
 import pytest
+import json
+import os
 from unittest.mock import Mock
 from ruamel.yaml import YAML
 from conda_vendor.conda_vendor import get_conda_platform
+from conda_lock.conda_solver import DryRunInstall
 
 # Test Fixtures
 
@@ -51,7 +54,11 @@ dependencies:
     fn.write(content)
     return fn
 
-
+@pytest.fixture(scope="function")
+def fetch_actions_packages():
+    fetch_actions_json = open('tests/test-fixtures/fetch-actions-fixture.json')
+    fetch_actions = json.load(fetch_actions_json)
+    return json.loads(fetch_actions)
 
 def mock_response(
     status=200, content=b"CONTENT", json_data=None, raise_for_status=None
