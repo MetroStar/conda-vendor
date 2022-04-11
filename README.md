@@ -15,6 +15,17 @@ To install with `conda`, run:
 conda install -c conda-forge conda-vendor
 ```
 
+### Development Installation
+Create a conda environment with conda-vendor development dependencies:
+```bash
+mamba env create --file environment.yaml
+```
+
+Install conda-vendor as an editable pip package:
+```bash
+pip install -e .
+```
+
 ## Usage
 
 #### Supported Solvers
