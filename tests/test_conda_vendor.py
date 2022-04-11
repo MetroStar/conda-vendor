@@ -1,13 +1,5 @@
 from requests.adapters import urldefragauth
-from conda_vendor.manifest import (
-    MetaManifest,
-    get_conda_platform,
-    LockWrapper,
-    combine_metamanifests,
-    deduplicate_pkg_list,
-    read_manifests,
-    write_combined_manifest,
-)
+from conda_vendor.conda_vendor import get_conda_platform
 import pytest
 from requests import Response
 import hashlib
@@ -37,6 +29,4 @@ def test_get_conda_platform_custom():
 
     actual_returns = [get_conda_platform(custom_platform=p) for p in test_platforms]
     assert set(actual_returns) == set(expected_returns)
-
-
 

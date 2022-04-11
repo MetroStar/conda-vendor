@@ -9,6 +9,9 @@ from click.testing import CliRunner
 from conda_vendor.conda_vendor import vendor
 
 # use python_main_defaults_environment fixture
-def test_vendor(python_main_defaults_environment):
+def test_vendor_dry_run(python_main_defaults_environment):
     runner = CliRunner()
-    result = runner.invoke(vendor, ['--file', python_main_defaults_environment, '--solver', 'conda', '--platform', 'linux-64']) 
+    result = runner.invoke(vendor, ['--file', python_main_defaults_environment, '--solver', 'conda', '--platform', 'linux-64', '--dry-run', 'True'])
+    assert result.exit_code == 0
+    assert 'Dry Run - Will Not Download Files' in result.output
+    assert 'Dry Run Complete!' in result.output
