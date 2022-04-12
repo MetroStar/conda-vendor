@@ -2,7 +2,7 @@ name: conda-vendor-dependencies
 channels:
   - conda-forge
 dependencies:
-  - python=3.10.*
+  - python
   - conda-lock=1.*
   - conda-build  
   - pip
