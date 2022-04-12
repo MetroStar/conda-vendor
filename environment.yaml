@@ -1,0 +1,24 @@
+name: conda-vendor-dependencies
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - conda-lock=1.*
+  - conda-build  
+  - pip
+  # solvers
+  - conda=4.12.0
+  - mamba
+  - micromamba
+  # teset dependencies
+  - pytest
+  - pytest-mock
+  - setuptools
+  - wheel
+   
+
+
+
+
+
+

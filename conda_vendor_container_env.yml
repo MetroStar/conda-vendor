@@ -1,7 +1,0 @@
-name: conda_vendor_env
-channels:
-  - conda-forge
-dependencies:
-  - python=3.9.5
-  - conda-lock
-  - ruamel.yaml
