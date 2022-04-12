@@ -35,6 +35,7 @@ jobs:
           channel-prioroity: true
           activate-environment: conda-vendor-dependencies
           environment-file: environment.yaml
+      - shell: bash -l {0}
         run: |
           pip install .
           pytest -vvv
