@@ -5,23 +5,36 @@ on:
 
 jobs:
   test-general:
-    name: 'Test Package'
+    name: 'conda-vendor tests'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10]
 
     steps:
-      - name: 'Checkout Infrastructure'
+      - name: 'Checkout condan-vendor'
         uses: actions/checkout@main
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      #- name: Set up Python
+      #  uses: actions/setup-python@v2
+      #  with:
+      #    python-version: ${{ matrix.python-version }}
+      #      
+      #- name: Install conda-vendor
+      #  run: |
+      #    pip install .
+      #- name: Install and run pytest
+      #  run: |
+      #    pip install pytest
+      #    pytest -vvv
+      - name: 'Install  conda dependencies'
+        uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install conda-vendor
+          mamba-version: "*"
+          channels: conda-forge
+          channel-prioroity: true
+          activate-environment: conda-vendor-dependencies
+          environment-file: environment.yaml
         run: |
           pip install .
-      - name: Install and run pytest
-        run: |
-          pip install pytest
           pytest -vvv
