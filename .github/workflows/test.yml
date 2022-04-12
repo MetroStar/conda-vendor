@@ -14,28 +14,15 @@ jobs:
     steps:
       - name: 'Checkout condan-vendor'
         uses: actions/checkout@main
-      #- name: Set up Python
-      #  uses: actions/setup-python@v2
-      #  with:
-      #    python-version: ${{ matrix.python-version }}
-      #      
-      #- name: Install conda-vendor
-      #  run: |
-      #    pip install .
-      #- name: Install and run pytest
-      #  run: |
-      #    pip install pytest
-      #    pytest -vvv
       - name: 'Install  conda dependencies'
         uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.python-version }}
-          mamba-version: "*"
-          channels: conda-forge
-          channel-priority: true
           activate-environment: conda-vendor-dependencies
           environment-file: environment.yaml
+          auto-activate-base: false
       - shell: bash -l {0}
         run: |
+          conda info
           pip install .
           pytest -vvv
