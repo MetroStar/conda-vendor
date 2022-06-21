@@ -25,5 +25,5 @@ def yaml_dump_ironbank_manifest(fetch_action_packages):
 
         resources["resources"].append(resource)
     yaml = YAML()
-    
-    ironbank_resources = yaml.dump(resources, sys.stdout)
+    with open("ib_manifest.yaml", 'w') as f:
+        ironbank_resources = yaml.dump(resources, f)

@@ -248,7 +248,7 @@ def main() -> None:
 @click.option(
     "--ironbank-gen",
     default=False,
-    help="Display IronBank Resources formatted text to STDOUT")
+    help="Save IronBank Resources 'ib_manifest.yaml' in current directory")
 def vendor(file,solver, platform, dry_run, ironbank_gen):
 
     click.echo(click.style(f"Vendoring Local Channel for file: {file}", fg='green'))
