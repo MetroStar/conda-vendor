@@ -120,8 +120,9 @@ def patch_link_actions(solver, platform, dry_run_install) -> DryRunInstall:
 
 # reconstruct repodata.json for subdirs
 def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
+    subdir = Path(dest_dir).name
     repo_data = {
-        "info": {"subdir": dest_dir},
+        "info": {"subdir": subdir},
         "packages": {},
         "packages.conda": {},
     }
