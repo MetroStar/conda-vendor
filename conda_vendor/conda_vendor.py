@@ -58,7 +58,7 @@ def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
             click.echo(err)
             sys.exit(f"Directory \"{desired_path}/{environment_name}\" already exists")
 
-def create_platform_dir(path, platform):
+def create_platform_dir(path, platform, overwrite=True):
     try:
         platform_path = path / platform
         os.mkdir(platform_path)
