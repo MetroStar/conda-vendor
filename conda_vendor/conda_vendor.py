@@ -33,30 +33,34 @@ def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
             sys.exit(f"Failed to read environment name from {environment_file}")
     
     # use current working directory if no path specified
+
+    def _create_vendored_dir(root_dir, env_name, platform):
+
+        if isinstance(root_dir, str):
+            root_dir = Path(root_dir) 
+
+        path = root_dir / env_name
+        os.mkdir(path)
+        create_platform_dir(path, platform)
+        create_noarch_dir(path)
+        return path
+
     if desired_path == None:
         try:
-            path = os.path.join(os.getcwd(), environment_name)
-            os.mkdir(path)
-            create_platform_dir(path, platform)
-            create_noarch_dir(path)
-            return path
+            return _create_vendored_dir(Path.cwd(), environment_name, platform)
         except FileExistsError as err:
             click.echo(err)
             sys.exit(f"Directory \"{environment_name}\" already exists")
     else:
         try:
-            path = os.path.join(desired_path, environment_name)
-            os.mkdir(path)
-            create_platform_dir(path, platform)
-            create_noarch_dir(path)
-            return path
+            return _create_vendored_dir(desired_path, environment_name, platform)
         except FileExistsError as err:
             click.echo(err)
             sys.exit(f"Directory \"{desired_path}/{environment_name}\" already exists")
 
 def create_platform_dir(path, platform):
     try:
-        platform_path = os.path.join(path, platform)
+        platform_path = path / platform
         os.mkdir(platform_path)
     except FileExistsError as err:
         click.echo(err)
@@ -64,7 +68,7 @@ def create_platform_dir(path, platform):
 
 def create_noarch_dir(path):
     try:
-        noarch_path = os.path.join(path, 'noarch')
+        noarch_path = path / "noarch"
         os.mkdir(noarch_path)
     except FileExistsError as err:
         click.echo(err)
@@ -120,8 +124,11 @@ def patch_link_actions(solver, platform, dry_run_install) -> DryRunInstall:
 
 # reconstruct repodata.json for subdirs
 def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
+    if isinstance(dest_dir, str):
+        dest_dir = Path(dest_dir)
+
     repo_data = {
-        "info": {"subdir": dest_dir},
+        "info": {"subdir": dest_dir.name},
         "packages": {},
         "packages.conda": {},
     }
@@ -156,26 +163,23 @@ def improved_download(url):
 
 def download_solved_pkgs(fetch_action_pkgs, vendored_path, platform):
     click.echo(click.style("Downloading and Verifying SHA256 Checksums for Solved Packages", bold=True, fg='green'))
+
+    def _download_solved_pkgs(pkg, vendored_path, platform):
+        platform_path = vendored_path / platform
+        response = improved_download(pkg['url'])
+        content = response.content
+
+        # verify checksum
+        compare_sha256(content, pkg['sha256'])
+        with open(platform_path / pkg['fn'], "wb") as conda_pkg:
+            conda_pkg.write(content)
+
     with click.progressbar(fetch_action_pkgs, label="Downloading Progress") as pkgs:
         for pkg in pkgs:
             if pkg['subdir'] == 'noarch':
-                noarch_path = os.path.join(vendored_path, 'noarch')
-                response = improved_download(pkg['url'])
-                content = response.content
-
-                # verify checksum
-                compare_sha256(content, pkg['sha256'])
-                with open(f"{noarch_path}/{pkg['fn']}", "wb") as conda_pkg:
-                    conda_pkg.write(content)
+                _download_solved_pkgs(pkg, vendored_path, "noarch")
             else:
-                platform_path = os.path.join(vendored_path, platform)
-                response = improved_download(pkg['url'])
-                content = response.content
-
-                # verify checksum
-                compare_sha256(content, pkg['sha256'])
-                with open(f"{platform_path}/{pkg['fn']}", "wb") as conda_pkg:
-                    conda_pkg.write(content)
+                _download_solved_pkgs(pkg, vendored_path, platform)
 
 def compare_sha256(byte_array, fetch_action_sha256):
     calculated_sha256 = hashlib.sha256(byte_array).hexdigest()
@@ -219,7 +223,7 @@ def hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path):
         for subdir in subdirs:
             if subdir in channel:
                 click.echo(click.style(f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json", bold=True, fg='red'))
-                reconstruct_repodata_json(f"{channel}/repodata.json", f"{vendored_dir_path}/{subdir}", fetch_action_packages)
+                reconstruct_repodata_json(f"{channel}/repodata.json", vendored_dir_path / subdir, fetch_action_packages)
         
 @click.group()
 @click.version_option(__version__)
