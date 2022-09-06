@@ -2,7 +2,6 @@ import click
 import yaml
 import sys
 import struct
-import os
 import requests
 import hashlib
 import json
@@ -40,7 +39,7 @@ def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
             root_dir = Path(root_dir) 
 
         path = root_dir / env_name
-        os.mkdir(path)
+        Path.mkdir(path)
         create_platform_dir(path, platform)
         create_noarch_dir(path)
         return path
@@ -61,15 +60,15 @@ def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
 def create_platform_dir(path, platform, overwrite=True):
     try:
         platform_path = path / platform
-        os.mkdir(platform_path)
+        Path.mkdir(platform_path, exist_ok=overwrite)
     except FileExistsError as err:
         click.echo(err)
         sys.exit(f"Directory \"{platform_path}\" already exists")
 
-def create_noarch_dir(path):
+def create_noarch_dir(path, overwrite=True):
     try:
         noarch_path = path / "noarch"
-        os.mkdir(noarch_path)
+        Path.mkdir(noarch_path, exist_ok=overwrite)
     except FileExistsError as err:
         click.echo(err)
         sys.exit(f"Directory \"{noarch_path}\" already exists")
