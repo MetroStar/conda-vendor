@@ -36,8 +36,8 @@ def test_vendor_dry_run(python_main_defaults_environment):
 # NOTE this test expects that 'mamba' is in your path, if you need to, 
 # uncomment the skip decorator
 #@pytest.mark.skip(reason="mamba is not installed or in $PATH")
-def test_vendor_full_runthrough(python_main_defaults_environment, tmpdir):
-    test_path = tmpdir.mkdir("full-runthrough")
+def test_vendor_full_runthrough(python_main_defaults_environment, tmp_path_factory):
+    test_path = tmp_path_factory.mktemp("full-runthrough")
     os.chdir(test_path)
 
     runner = CliRunner()
@@ -78,8 +78,8 @@ def test_fetch_actions(dry_run_install_fixture):
 
 # this integration test runs hotfix_vendored_repodata_json
 # which subsequently calls reconstruct_repodata_json
-def test_hotfix_vendored_repodata_json(fetch_action_packages_fixture, tmpdir):
-    temp_vendored_dir = tmpdir.mkdir("test-hotfix-repodata")
+def test_hotfix_vendored_repodata_json(fetch_action_packages_fixture, tmp_path_factory):
+    temp_vendored_dir = tmp_path_factory.mktemp("test-hotfix-repodata")
     create_platform_dir(temp_vendored_dir, "linux-64")
     create_noarch_dir(temp_vendored_dir)
     hotfix_vendored_repodata_json(fetch_action_packages_fixture, temp_vendored_dir)
@@ -88,8 +88,8 @@ def test_hotfix_vendored_repodata_json(fetch_action_packages_fixture, tmpdir):
 
 
 # this integration test runs the download_solved_pkgs fn
-def test_download_solved_pkgs(fetch_action_packages_fixture, tmpdir):
-    download_dir = tmpdir.mkdir("test-download-target")
+def test_download_solved_pkgs(fetch_action_packages_fixture, tmp_path_factory):
+    download_dir = tmp_path_factory.mktemp("test-download-target")
     create_platform_dir(download_dir, "linux-64")
     create_noarch_dir(download_dir)
     download_solved_pkgs(fetch_action_packages_fixture, download_dir, "linux-64")
