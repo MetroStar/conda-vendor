@@ -17,9 +17,9 @@ jobs:
         with:
           python-version: 3.9
 
-      - name: Install Twine
+      - name: Install Dependencies
         run: |
-          pip install twine
+          pip install twine click
       - name: Build and Distribute
         env:
           PYPI_USERNAME: __token__
