@@ -14,7 +14,7 @@ from typing import List
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from conda_build import api
-from conda_vendor.iron_bank_generator import yaml_dump_ironbank_manifest 
+from conda_vendor.iron_bank_generator import yaml_dump_ironbank_manifest
 
 def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
     lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
@@ -30,13 +30,13 @@ def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
         except yaml.YAMLError as err:
             click.echo(err)
             sys.exit(f"Failed to read environment name from {environment_file}")
-    
+
     # use current working directory if no path specified
 
     def _create_vendored_dir(root_dir, env_name, platform):
 
         if isinstance(root_dir, str):
-            root_dir = Path(root_dir) 
+            root_dir = Path(root_dir)
 
         path = root_dir / env_name
         Path.mkdir(path)
@@ -72,24 +72,46 @@ def create_noarch_dir(path, overwrite=True):
     except FileExistsError as err:
         click.echo(err)
         sys.exit(f"Directory \"{noarch_path}\" already exists")
-   
+
+def _scrub_virtual_pkgs(dry_run_install, chan):
+    fetch = []
+    link = []
+
+    for entry in dry_run_install['actions']['FETCH']:
+        if entry['channel'].startswith(chan):
+            continue
+        fetch.append(entry)
+
+    for entry in dry_run_install['actions']['LINK']:
+        if entry['base_url'] == chan:
+            continue
+        link.append(entry)
+
+    dry_run_install['actions']['FETCH'] = fetch
+    dry_run_install['actions']['LINK'] = link
+    return dry_run_install
 
 def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
     specs = get_specs(lock_spec)
-    
+
     click.echo(click.style(f"Using Solver: {solver}", bold=True, bg='black', fg='cyan'))
     click.echo(click.style(f"Solving for Platform: {platform}", bold=True, bg='black', fg='cyan'))
     click.echo(click.style(f"Solving for Spec: {specs}", bold=True, bg='black', fg='cyan'))
-    
+
+    virtual_package_repodata = CondaLockWrapper.default_virtual_package_repodata()
+    virtual_package_chan = virtual_package_repodata.channel
+    channels = [*lock_spec.channels, virtual_package_chan]
     dry_run_install = CondaLockWrapper.solve_specs_for_arch(
             solver,
-            lock_spec.channels,
+            channels,
             specs,
             platform)
 
+    dry_run_install = _scrub_virtual_pkgs(dry_run_install,
+                                          virtual_package_chan.url)
+
     if not dry_run_install['success']:
         sys.exit("Failed to Solve for {specs}\n Using {solver} for {platform}")
-
     click.echo(click.style("Successfull Solve", bold=True, fg='green', blink=True))
 
     return dry_run_install
@@ -131,7 +153,7 @@ def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
         "packages": {},
         "packages.conda": {},
     }
-    
+
     valid_names = [pkg["fn"] for pkg in fetch_actions]
 
     live_repodata_json = improved_download(repodata_url).json()
@@ -214,7 +236,7 @@ def hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path):
         click.echo(click.style("========================================================================", fg='blue', bold=True))
         click.echo(click.style(f"Channel: {pkg['channel']}\nPackage: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}", fg='yellow'))
         click.echo(click.style("========================================================================", fg='blue', bold=True))
-    
+
     # patch repodata.json for each channel + subdir
     channels = list(set(channels))
     subdirs = list(set(subdirs))
@@ -223,7 +245,7 @@ def hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path):
             if subdir in channel:
                 click.echo(click.style(f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json", bold=True, fg='red'))
                 reconstruct_repodata_json(f"{channel}/repodata.json", vendored_dir_path / subdir, fetch_action_packages)
-        
+
 @click.group()
 @click.version_option(__version__)
 def main() -> None:
@@ -233,7 +255,7 @@ def main() -> None:
 @click.command("vendor", help="Vendor dependencies into a local channel, given an environment file")
 @click.option(
     "--file",
-    default=None, 
+    default=None,
     help="Path to environment.yaml")
 @click.option(
     "--solver",
@@ -255,7 +277,7 @@ def main() -> None:
 def vendor(file,solver, platform, dry_run, ironbank_gen):
 
     click.echo(click.style(f"Vendoring Local Channel for file: {file}", fg='green'))
-    
+
     # handle environment.yaml
     environment_yaml = Path(file)
 
@@ -270,26 +292,26 @@ def vendor(file,solver, platform, dry_run, ironbank_gen):
 
     # generate DryRunInstall
     dry_run_install = solve_environment(lock_spec, solver, platform)
-    
+
     # generate List[FetchAction]
     # a FetchAction object includes all the entries from the corresponding
     # package's repodata.json
     fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
-    
+
     # generate hotfix repodata.json for each channel and subdir
     if not dry_run:
         hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path)
-       
+
         # download and verify packages to appropriate subdir
-        download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform) 
+        download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
         click.echo(click.style(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}", bold=True, fg='green'))
-    
+
         click.echo(click.style(f"Vendoring Complete!\nVendored Channel: {vendored_dir_path}", bold=True, fg='green'))
     else:
         click.echo(click.style("Dry Run Complete!", bold=True, fg='red'))
         json_formatted_packages = json.dumps(fetch_action_packages, indent=4)
         click.echo(click.style(json_formatted_packages, fg='green'))
-    
+
     if ironbank_gen:
         click.echo(click.style("Generating IronBank Resources Formatted Text Below:", bold=True, fg='cyan'))
         yaml_dump_ironbank_manifest(fetch_action_packages)
@@ -297,7 +319,7 @@ def vendor(file,solver, platform, dry_run, ironbank_gen):
 @click.command("ironbank-gen", help="Generate Formatted Text to use in IronBank's Hardening Manifest")
 @click.option(
     "--file",
-    default=None, 
+    default=None,
     help="Path to environment.yaml")
 @click.option(
     "--solver",
@@ -318,14 +340,14 @@ def ironbank_gen(file, solver, platform):
 
     # generate DryRunInstall
     dry_run_install = solve_environment(lock_spec, solver, platform)
-    
+
     # generate List[FetchAction]
     # a FetchAction object includes all the entries from the corresponding
     # package's repodata.json
     fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
 
     yaml_dump_ironbank_manifest(fetch_action_packages)
-   
+
 main.add_command(vendor)
 main.add_command(ironbank_gen)
 
