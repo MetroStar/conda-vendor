@@ -4,11 +4,11 @@ channels:
 dependencies:
   - python
   - click
-  - conda-lock=1.*
+  - conda-lock>=1.2.*
   - conda-build  
   - pip
   # solvers
-  - conda=4.12.0
+  - conda
   - mamba
   - micromamba
   # teset dependencies

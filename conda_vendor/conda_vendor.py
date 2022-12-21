@@ -155,23 +155,27 @@ def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
     }
 
     valid_names = [pkg["fn"] for pkg in fetch_actions]
-
     live_repodata_json = improved_download(repodata_url).json()
-    with click.progressbar(live_repodata_json["packages"].items(), label="Hotfix Patching repodata.json") as repodata_packages:
+    with click.progressbar(
+            live_repodata_json["packages"].items(),
+            label="Hotfix Patching repodata.json [packages]") as repodata_packages:
         if live_repodata_json.get("packages"):
             for name, entry in repodata_packages:
                 if name in valid_names:
                     repo_data["packages"][name] = entry
 
+    with click.progressbar(
+            live_repodata_json["packages.conda"].items(),
+            label="Hotfix Patching repodata.json [packages.conda]") as repodata_packages:
         if live_repodata_json.get("packages.conda"):
             for name, entry in repodata_packages:
                 if name in valid_names:
                     repo_data["packages.conda"][name] = entry
 
-        # write to destination
-        dest_file = Path(f"{dest_dir}/repodata.json")
-        with dest_file.open("w") as f:
-            json.dump(repo_data, f)
+    # write to destination
+    dest_file = Path(f"{dest_dir}/repodata.json")
+    with dest_file.open("w") as f:
+        json.dump(repo_data, f)
 
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def improved_download(url):
