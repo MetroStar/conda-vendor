@@ -9,7 +9,7 @@ from requests import Response
 from requests.adapters import urldefragauth
 from yaml import safe_load
 from ruamel.yaml import YAML
-from conda_vendor.conda_vendor import improved_download
+from conda_vendor.conda_vendor import _improved_download
 
 from .conftest import mock_response
 
@@ -18,15 +18,15 @@ from .conftest import mock_response
 def test_improved_download(mock) -> None:
     mock.return_value = Mock(Response)
     test_url = "https://NOT_REAL.com"
-    result = improved_download(test_url)
+    result = _improved_download(test_url)
     result_called_with = mock.call_args[0][0]
     assert result_called_with == test_url
     assert mock.call_count == 1
     assert isinstance(result, Response)
 
 
-#@patch("conda_vendor.conda_channel.improved_download")
-#def test_CondaChannel_fetch_and_filter_repodata(mock_download, conda_channel_fixture):
+# @patch("conda_vendor.conda_channel.improved_download")
+# def test_CondaChannel_fetch_and_filter_repodata(mock_download, conda_channel_fixture):
 #
 #    fake_manifest_subset_metadata = {
 #        "repodata_url": "https://url1",
@@ -74,8 +74,8 @@ def test_improved_download(mock) -> None:
 #    TestCase().assertDictEqual(result, expected)
 
 
-#@patch("conda_vendor.conda_channel.improved_download")
-#def test_CondaChannel_download_and_validate(mock, tmp_path):
+# @patch("conda_vendor.conda_channel.improved_download")
+# def test_CondaChannel_download_and_validate(mock, tmp_path):
 #    expected_raw = b"DUMMY_DATA"
 #    expected_path = tmp_path / "dummy.data"
 #    expected_hash = hashlib.sha256(expected_raw).hexdigest()

@@ -1,5 +1,7 @@
+"""Create a valid local Conda channel from a specified Conda environment.yaml
+file.
+"""
 import pkg_resources
-
 from conda_vendor.conda_vendor import main
 
 __all__ = ["main"]

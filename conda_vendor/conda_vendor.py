@@ -1,180 +1,280 @@
+""" The main idea is to pass an isolated environment (environment.yaml)  to
+ conda-lock and get a list of packages, locations, and metadata.  We
+ download all the packages specified into a solution into the directory
+ structure of a Conda channel.  We grab the repodata for each package from
+ the original source and write a condensed repodata.json only having our
+ vendored packages.
+ """
 import click
-import yaml
-import sys
-import struct
-import requests
 import hashlib
 import json
-from conda_vendor.version import __version__
-from conda_vendor.conda_lock_wrapper import CondaLockWrapper
-from conda_lock.src_parser import LockSpecification
-from conda_lock.conda_solver import DryRunInstall, VersionedDependency, FetchAction
+import requests
+import struct
+import sys
+import yaml
+
+from packaging import version
 from pathlib import Path
-from typing import List
-from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
-from conda_build import api
-from conda_vendor.iron_bank_generator import yaml_dump_ironbank_manifest
+from requests.packages.urllib3.util.retry import Retry
+from ruamel.yaml import YAML
+from typing import List
 
-def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
-    lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
-    return lock_spec
+from conda_lock import __version__ as conda_lock_version
+from conda_lock.conda_solver import (
+    DryRunInstall,
+    VersionedDependency,
+    FetchAction,
+)
+from conda_lock.conda_solver import (
+    _reconstruct_fetch_actions as reconstruct_fetch_actions,
+)
+from conda_lock.conda_solver import solve_specs_for_arch
+from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.virtual_package import default_virtual_package_repodata
+
+from conda_vendor.version import __version__
 
 
-# create the vendored channel directory, given the name in the environment.yaml
-def create_vendored_dir(environment_file, platform, desired_path=None) -> Path:
-    with open(environment_file, 'r') as env_file:
-        try:
-            environment_yaml = yaml.safe_load(env_file)
-            environment_name = environment_yaml['name']
-        except yaml.YAMLError as err:
-            click.echo(err)
-            sys.exit(f"Failed to read environment name from {environment_file}")
+#  conda-lock:
+#  the solution returned by conda-lock is essentially a dictionary with
+#  {
+#       'actions':
+#       {
+#            'LINK': [ link_actions, ...],
+#            'FETCH': [ fetch_actions, ...]
+#       }
+#  }
+#
+#  the fetch_actions are essentially a struct with info in repodata.json
+#
+#  class FetchAction(TypedDict):
+#      """
+#      FETCH actions include all the entries from the corresponding package's
+#      repodata.json
+#      """
+#
+#      channel: str
+#      constrains: Optional[List[str]]
+#      depends: Optional[List[str]]
+#      fn: str
+#      md5: str
+#      sha256: Optional[str]
+#      name: str
+#      subdir: str
+#      timestamp: int
+#      url: str
+#      version: str
+#
+#
+#  implementation gotchas:
+#
+#  cross platform vendoring requires specifying conda virtual_packages __unix,
+#  __linux, __osx, __cuda, __glibc, etc.  so there are some shenanigans to get
+#  a sensible default virtual_package list from conda-lock.  (This is stored
+#  in a temporary directory).  After we solve, we remove all virtual_packages
+#  from the solution set.
+#
+#  the way we write repodata.json for each subdirectory will break if we
+#  vendor from multiple sources
 
-    # use current working directory if no path specified
 
-    def _create_vendored_dir(root_dir, env_name, platform):
+def _blue(s, bold=True):
+    click.echo(click.style(s, fg="blue", bg="black", bold=bold))
 
-        if isinstance(root_dir, str):
-            root_dir = Path(root_dir)
 
-        path = root_dir / env_name
-        Path.mkdir(path)
-        create_platform_dir(path, platform)
-        create_noarch_dir(path)
-        return path
+def _cyan(s, bold=True):
+    click.echo(click.style(s, fg="cyan", bg="black", bold=bold))
 
-    if desired_path == None:
-        try:
-            return _create_vendored_dir(Path.cwd(), environment_name, platform)
-        except FileExistsError as err:
-            click.echo(err)
-            sys.exit(f"Directory \"{environment_name}\" already exists")
+
+def _green(s, bold=True):
+    click.echo(click.style(s, fg="green", bg="black", bold=bold))
+
+
+def _red(s, bold=True):
+    click.echo(click.style(s, fg="red", bg="black", bold=bold))
+
+
+def _yellow(s, bold=True):
+    click.echo(click.style(s, fg="yellow", bg="black", bold=bold))
+
+
+def _parse_environment_file(environment_file: Path, platform: str):
+    # the function parameters changed in conda-lock 1.3.0
+    if version.parse(conda_lock_version) < version.parse("1.3.0"):
+        return parse_environment_file(environment_file)
     else:
+        return parse_environment_file(environment_file, [platform])
+
+
+def create_vendored_dir(
+    environment_name: str, platform: str, desired_path: Path = Path.cwd()
+) -> Path:
+    """Create the vendored channel directory tree, given the name of the
+    environment.
+
+    Parameters
+    ----------
+    environment_name: str
+        name of the environment to create
+    platform: str
+        platform, eg. linux-64, osx-64, etc..
+    desired_path: pathlib.Path
+        root where to put the tree.  defaults to current directory.
+
+    Returns
+    -------
+    pathlib.Path
+        a path to the root of the newly created tree
+
+
+    basically creates
+        "desired_path/environment_name"
+        "desired_path/environment_name/platform"
+        "desired_path/environment_name/noarch"
+    """
+    assert isinstance(desired_path, Path)
+
+    def _mkdir(p: Path):
         try:
-            return _create_vendored_dir(desired_path, environment_name, platform)
-        except FileExistsError as err:
-            click.echo(err)
-            sys.exit(f"Directory \"{desired_path}/{environment_name}\" already exists")
+            Path.mkdir(p)
+        except Exception as e:
+            click.echo(str(e))
+            sys.exit(f"an error occurred creating directory {str(p)}")
 
-def create_platform_dir(path, platform, overwrite=True):
-    try:
-        platform_path = path / platform
-        Path.mkdir(platform_path, exist_ok=overwrite)
-    except FileExistsError as err:
-        click.echo(err)
-        sys.exit(f"Directory \"{platform_path}\" already exists")
-
-def create_noarch_dir(path, overwrite=True):
-    try:
-        noarch_path = path / "noarch"
-        Path.mkdir(noarch_path, exist_ok=overwrite)
-    except FileExistsError as err:
-        click.echo(err)
-        sys.exit(f"Directory \"{noarch_path}\" already exists")
-
-def _scrub_virtual_pkgs(dry_run_install, chan):
-    fetch = []
-    link = []
-
-    for entry in dry_run_install['actions']['FETCH']:
-        if entry['channel'].startswith(chan):
-            continue
-        fetch.append(entry)
-
-    for entry in dry_run_install['actions']['LINK']:
-        if entry['base_url'] == chan:
-            continue
-        link.append(entry)
-
-    dry_run_install['actions']['FETCH'] = fetch
-    dry_run_install['actions']['LINK'] = link
-    return dry_run_install
-
-def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
-    specs = get_specs(lock_spec)
-
-    click.echo(click.style(f"Using Solver: {solver}", bold=True, bg='black', fg='cyan'))
-    click.echo(click.style(f"Solving for Platform: {platform}", bold=True, bg='black', fg='cyan'))
-    click.echo(click.style(f"Solving for Spec: {specs}", bold=True, bg='black', fg='cyan'))
-
-    virtual_package_repodata = CondaLockWrapper.default_virtual_package_repodata()
-    virtual_package_chan = virtual_package_repodata.channel
-    channels = [*lock_spec.channels, virtual_package_chan]
-    dry_run_install = CondaLockWrapper.solve_specs_for_arch(
-            solver,
-            channels,
-            specs,
-            platform)
-
-    dry_run_install = _scrub_virtual_pkgs(dry_run_install,
-                                          virtual_package_chan.url)
-
-    if not dry_run_install['success']:
-        sys.exit("Failed to Solve for {specs}\n Using {solver} for {platform}")
-    click.echo(click.style("Successfull Solve", bold=True, fg='green', blink=True))
-
-    return dry_run_install
+    root = desired_path / environment_name
+    _mkdir(root)
+    _mkdir(root / platform)
+    _mkdir(root / "noarch")
+    return root
 
 
-# get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
-def get_specs(lock_spec) -> List[str]:
-    versioned_deps = lock_spec.dependencies
+# get formatted list of packages (optionally with their version requirements
+# ready to be sent *back* to conda-lock)
+def _get_query_list(lock_spec: LockSpecification) -> List[str]:
+    """Go through the LockSpecification object and grab all the packages
+    with their versions into a list.
+
+    Parameters
+    ----------
+    lock_spec: conda_lock.src_parser.LockSpecification
+        a lock spec generated by conda_lock from the initial enviroment.yaml
+
+    Returns
+    -------
+    list
+       a formatted list of Python packages with their dependency requirements
+
+    """
     specs = []
-    for dep in versioned_deps:
-        if dep.version == '':
+    for dep in lock_spec.dependencies:
+        if dep.version == "":
             specs.append(f"{dep.name}")
         else:
-            specs.append(f"{dep.name}=={dep.version}")
+            if dep.version[0].isnumeric():
+                specs.append(f"{dep.name}=={dep.version}")
+            else:
+                specs.append(f"{dep.name}{dep.version}")
     return specs
 
 
-# Only return packages in the FETCH action, which
-# include all the entries form the packages repodata.json
-def get_fetch_actions(solver, platform, dry_run_install) -> List[FetchAction]:
-    patched_dry_run_install = patch_link_actions(solver, platform, dry_run_install)
-    fetch_actions = patched_dry_run_install["actions"]["FETCH"]
-    return fetch_actions
+def _remove_channel(solution: DryRunInstall, channel: str):
+    """Filter a conda-lock solution and remove any packages from the specified
+    channel.
+
+    Parameters
+    ----------
+    solution: conda_lock.conda_solver.DryRunInstall
+        valid solution from conda-lock
+
+    channel: str
+        the channel to remove.
+    """
+    fetch = []
+    link = []
+
+    for entry in solution["actions"]["FETCH"]:
+        if entry["channel"].startswith(channel):
+            continue
+        fetch.append(entry)
+
+    for entry in solution["actions"]["LINK"]:
+        if entry["base_url"] == channel:
+            continue
+        link.append(entry)
+
+    solution["actions"]["FETCH"] = fetch
+    solution["actions"]["LINK"] = link
+    return solution
 
 
-# append DryRunInstall witn LINK action items
-def patch_link_actions(solver, platform, dry_run_install) -> DryRunInstall:
-    patched_dry_run_install = CondaLockWrapper.reconstruct_fetch_actions(solver, platform, dry_run_install)
-    return patched_dry_run_install
+def solve_environment(
+    environment_file: Path, solver: str, platform: str
+) -> List[FetchAction]:
+    """Solve the environment specified in the conda environment_yaml,
+    and return a list of all the required packages with enough metadata
+    to generate a repo_data.json.
 
+    Parameters
+    ----------
+    environment_file: pathlib.Path
+        path to the environment.yaml to solve
 
-# reconstruct repodata.json for subdirs
-def reconstruct_repodata_json(repodata_url, dest_dir, fetch_actions):
-    if isinstance(dest_dir, str):
-        dest_dir = Path(dest_dir)
+    solver: str
+        which conda is used to solve: conda, miniconda, mamba, etc.
 
-    repo_data = {
-        "info": {"subdir": dest_dir.name},
-        "packages": {},
-        "packages.conda": {},
-    }
+    platform: str
+        platform to vendor for: eg. linux-32, win-64, osx-64, etc.
 
-    valid_names = [pkg["fn"] for pkg in fetch_actions]
+    Returns
+    -------
+    list [ conda_lock.conda_solver.FetchAction ]
 
-    live_repodata_json = improved_download(repodata_url).json()
-    with click.progressbar(live_repodata_json["packages"].items(), label="Hotfix Patching repodata.json") as repodata_packages:
-        if live_repodata_json.get("packages"):
-            for name, entry in repodata_packages:
-                if name in valid_names:
-                    repo_data["packages"][name] = entry
+    """
+    assert isinstance(environment_file, Path)
 
-        if live_repodata_json.get("packages.conda"):
-            for name, entry in repodata_packages:
-                if name in valid_names:
-                    repo_data["packages.conda"][name] = entry
+    # generate conda-lock's LockSpecification
+    lock_spec = _parse_environment_file(environment_file, platform)
+    specs = _get_query_list(lock_spec)
 
-        # write to destination
-        dest_file = Path(f"{dest_dir}/repodata.json")
-        with dest_file.open("w") as f:
-            json.dump(repo_data, f)
+    _cyan(f"Using Solver: {solver}", bold=False)
+    _cyan(f"Solving for Platform: {platform}", bold=False)
+    _cyan(f"Solving for Spec: {specs}", bold=False)
+
+    # let conda-lock solve for the environment
+    virtual_package_repodata = default_virtual_package_repodata()
+    virtual_package_chan = virtual_package_repodata.channel
+    channels = [*lock_spec.channels, virtual_package_chan]
+    solution = solve_specs_for_arch(solver, channels, specs, platform)
+    solution = _remove_channel(solution, virtual_package_chan.url)
+    if not solution["success"]:
+        sys.exit(
+            f"Failed to Solve for {specs}\n Using {solver} for {platform}"
+        )
+    _green("Successfull Solve")
+
+    # unfortunately Conda sometimes doesn't fill out the FETCH actions
+    # completely so conda-lock will generate the appropriate FETCH action from
+    # the LINK action and the repodata.json
+    patched_solution = reconstruct_fetch_actions(solver, platform, solution)
+    return patched_solution["actions"]["FETCH"]
+
 
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
-def improved_download(url):
+def _improved_download(url: str):
+    """Wrapper arround request.get() to allow for retries
+
+    Parameters
+    ----------
+    url: str
+        url to fetch
+
+    Returns
+    -------
+    request.Response
+        response object containing the fetched file
+    """
     session = requests.Session()
     retry = Retry(connect=5, backoff_factor=0.5)
     adapter = HTTPAdapter(max_retries=retry)
@@ -182,37 +282,227 @@ def improved_download(url):
     session.mount("https://", adapter)
     return session.get(url)
 
-def download_solved_pkgs(fetch_action_pkgs, vendored_path, platform):
-    click.echo(click.style("Downloading and Verifying SHA256 Checksums for Solved Packages", bold=True, fg='green'))
 
-    def _download_solved_pkgs(pkg, vendored_path, platform):
-        platform_path = vendored_path / platform
-        response = improved_download(pkg['url'])
-        content = response.content
+def _reconstruct_repodata_json(
+    repodata_url: str, dest_dir: Path, package_list: List[FetchAction]
+):
+    """Given the url of a repodata.json file, walk through the package list
+    specified and grab all the metadata about the package from the specified
+    repodata.json.  Then write a new repodata.json at dest_dir/repo_data.json
+    with the given metadata.
 
-        # verify checksum
-        compare_sha256(content, pkg['sha256'])
-        with open(platform_path / pkg['fn'], "wb") as conda_pkg:
-            conda_pkg.write(content)
+    Parameters
+    ----------
+    repodata_url: str
+        location of the repodata.json describing the solved package metadata
 
-    with click.progressbar(fetch_action_pkgs, label="Downloading Progress") as pkgs:
+    dest_dir: pathlib.Path
+        location where the vendored packages are or will be stored.
+
+    package_list: list [ conda_lock.conda_solver.FetchAction ]
+        list of packages (and their metadata) provided by conda-lock
+
+    """
+    assert isinstance(dest_dir, Path)
+
+    repo_data = {
+        "info": {"subdir": dest_dir.name},
+        "packages": {},
+        "packages.conda": {},
+    }
+
+    valid_names = [pkg["fn"] for pkg in package_list]
+
+    live_repodata_json = _improved_download(repodata_url).json()
+    _packages = live_repodata_json.get("packages", {})
+    _packages_dot_conda = live_repodata_json.get("packages.conda", {})
+
+    with click.progressbar(
+        length=len(_packages) + len(_packages_dot_conda),
+        label="Hotfix Patching repodata.json",
+    ) as pb:
+
+        for name, entry in _packages.items():
+            if name in valid_names:
+                repo_data["packages"][name] = entry
+            pb.update(1)
+
+        for name, entry in _packages_dot_conda.items():
+            if name in valid_names:
+                repo_data["packages.conda"][name] = entry
+            pb.update(1)
+
+    # write to destination
+    dest_file = Path(f"{dest_dir}/repodata.json")
+    with dest_file.open("w") as f:
+        json.dump(repo_data, f)
+
+
+# hotfix vendored repodata.json given the input of FETCH action packages
+# from conda-lock's solve results
+def hotfix_vendored_repodata_json(
+    package_list: List[FetchAction], vendored_dir_path: Path
+):
+    """Go through the package_list, i.e. the solution provided by conda_lock,
+    and generate a new repodata.json at vendored_dir_path/{subdir}, where
+    subdir is either noarch or the platform (as specified in the metadata
+    in package_list).
+
+    Parameters
+    ----------
+    package_list: list [ conda_lock.conda_solver.FetchAction ]
+        list of packages (and their metadata) provided by conda-lock
+
+    vendored_dir_path: pathlib.Path
+        location of the root of the new conda channel
+    """
+    channels = []
+    subdirs = []
+
+    for pkg in package_list:
+        channels.append(pkg["channel"])
+        subdirs.append(pkg["subdir"])
+
+        _blue(70 * "=")
+        _yellow(f"Channel: {pkg['channel']}", bold=False)
+        _yellow(f"Package: {pkg['fn']}", bold=False)
+        _yellow(f"URL: {pkg['url']}", bold=False)
+        _yellow(f"SHA256: {pkg['sha256']}", bold=False)
+        _yellow(f"Subdirectory: {pkg['subdir']}", bold=False)
+        _yellow(f"Timestamp: {pkg['timestamp']}", bold=False)
+        _blue(70 * "=")
+
+    channels = list(set(channels))
+    subdirs = list(set(subdirs))
+
+    # patch repodata.json for each channel + subdir
+
+    # this monstrosity just calls reconstruct_repodata for each subdir like
+    # "noarch" , "osx-64", "linux-64", with each channel like
+    # https://conda-forge/blah/osx-64 or
+    #  file:///usr/share/blah/local-channel/osx-64 we decide if they mach if
+    # subdir is a substring of the channel
+    #
+    # TODO: This will break if we try to vendor from more than 1 channel
+    for subdir in subdirs:
+        for channel in (ch for ch in channels if subdir in ch):
+            _red(
+                f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json"
+            )
+            _reconstruct_repodata_json(
+                f"{channel}/repodata.json",
+                vendored_dir_path / subdir,
+                package_list,
+            )
+
+
+# TODO: download and checksum in chunks
+# https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests
+def download_packages(
+    package_list: List[FetchAction], vendored_path: Path, platform: str
+):
+    """For each Conda package specified in package_list.  Fetch the binary
+    from the url (in the metadata).  Calculate the checksum and verify
+    it with the provided checksum.
+
+    Parameters
+    ----------
+    package_list: list [ conda_lock.conda_solver.FetchAction ]
+        list of packages (and their metadata) provided by conda-lock
+
+    vendored_dir_path: pathlib.Path
+        location of the root of the new conda channel
+
+    platform: str
+        platform to vendor: e.g. linux-64, osx-32, etc.
+
+    """
+    assert isinstance(vendored_path, Path)
+    _green("Downloading and Verifying SHA256 Checksums for Solved Packages")
+
+    with click.progressbar(
+        package_list, label="Downloading Progress"
+    ) as pkgs:
         for pkg in pkgs:
-            if pkg['subdir'] == 'noarch':
-                _download_solved_pkgs(pkg, vendored_path, "noarch")
-            else:
-                _download_solved_pkgs(pkg, vendored_path, platform)
+            dest_dir = vendored_path / pkg["subdir"]
+            assert dest_dir.exists() and dest_dir.is_dir()
 
-def compare_sha256(byte_array, fetch_action_sha256):
-    calculated_sha256 = hashlib.sha256(byte_array).hexdigest()
-    if calculated_sha256 != fetch_action_sha256:
-        raise RuntimeError(f"Calculated SHA256 does not match repodata.json SHA256")
-        sys.exit("SHA256 Checksum Validation Failed")
+            file_data = _improved_download(pkg["url"]).content
 
-#see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
-def get_conda_platform(platform=sys.platform, custom_platform=None) -> str:
+            # verify checksum
+            sha256 = hashlib.sha256(file_data).hexdigest()
+            if sha256 != pkg["sha256"]:
+                sys.exit("SHA256 Checksum Validation Failed")
 
-    if custom_platform is not None:
-        return custom_platform
+            with open(dest_dir / pkg["fn"], "wb") as f:
+                f.write(file_data)
+
+
+def yaml_dump_ironbank_manifest(package_list: List[FetchAction]):
+    """This generates formatted text to insert into the DoD IronBank's
+    hardening_manifest.yaml "resources" block.
+
+    Parameters
+    ----------
+    package_list: list [ conda_lock.conda_solver.FetchAction ]
+        list of packages (and their metadata) provided by conda-lock
+    """
+
+    _cyan("Generating Iron Bank resources clause")
+
+    # IronBank formatted 'resources' block
+    resources = {
+        "resources": [],
+    }
+
+    for pkg in package_list:
+        validation = {"type": "sha256", "value": pkg["sha256"]}
+        resource = {
+            "url": pkg["url"],
+            "filename": pkg["fn"],
+            "validation": validation,
+        }
+
+        resources["resources"].append(resource)
+
+    yaml = YAML()
+    with open("ib_manifest.yaml", "w") as f:
+        ironbank_resources = yaml.dump(resources, f)
+    _green("Iron Bank resources list written to ib_manifest.yaml")
+
+
+###########################################################################
+#                                                                         #
+#                                main                                     #
+#                                                                         #
+###########################################################################
+
+
+@click.group()
+@click.version_option(__version__)
+def main() -> None:
+    """Display help and usage for subcommands, use: conda-vendor [COMMAND] --help"""
+    pass
+
+
+# see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
+def _get_conda_platform(platform=None) -> str:
+    """Get the platform string (the string Conda needs) but allow the
+    caller to override.
+
+    Parameters
+    ----------
+    platform: str
+        platform in Python's format to be converted to Conda's format if
+        it is provided, just use it. Otherwise convert the string to something
+        that Conda wants
+    """
+
+    if platform is not None:
+        return platform
+
+    platform = sys.platform
+    bits = struct.calcsize("P") * 8
 
     _platform_map = {
         "linux2": "linux",
@@ -222,131 +512,156 @@ def get_conda_platform(platform=sys.platform, custom_platform=None) -> str:
         "zos": "zos",
     }
 
-    bits = struct.calcsize("P") * 8
     return f"{_platform_map[platform]}-{bits}"
 
-# hotfix vendored repodata.json given the input of FETCH action packages
-# from conda-lock's solve results
-def hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path):
-    channels = []
-    subdirs = []
-    for pkg in fetch_action_packages:
-        channels.append(pkg["channel"])
-        subdirs.append(pkg["subdir"])
-        click.echo(click.style("========================================================================", fg='blue', bold=True))
-        click.echo(click.style(f"Channel: {pkg['channel']}\nPackage: {pkg['fn']}\nURL: {pkg['url']}\nSHA256: {pkg['sha256']}\nSubdirectory: {pkg['subdir']}\nTimestamp: {pkg['timestamp']}", fg='yellow'))
-        click.echo(click.style("========================================================================", fg='blue', bold=True))
 
-    # patch repodata.json for each channel + subdir
-    channels = list(set(channels))
-    subdirs = list(set(subdirs))
-    for channel in channels:
-        for subdir in subdirs:
-            if subdir in channel:
-                click.echo(click.style(f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json", bold=True, fg='red'))
-                reconstruct_repodata_json(f"{channel}/repodata.json", vendored_dir_path / subdir, fetch_action_packages)
+###########################################################################
+#                                                                         #
+#                    conda-vendor vendor                                  #
+#                                                                         #
+###########################################################################
 
-@click.group()
-@click.version_option(__version__)
-def main() -> None:
-    """Display help and usage for subcommands, use: conda-vendor [COMMAND] --help"""
-    pass
 
-@click.command("vendor", help="Vendor dependencies into a local channel, given an environment file")
+@click.command(
+    "vendor",
+    help="Vendor dependencies into a local channel, given an environment file",
+)
 @click.option(
-    "--file",
-    default=None,
-    help="Path to environment.yaml")
+    "-f", "--file", default=None, help="Path to solvable environment.yaml"
+)
 @click.option(
+    "-s",
     "--solver",
     default="conda",
-    help="Solver to use. conda, mamba, micromamba")
+    help="Solver to use. Examples: conda, mamba, micromamba",
+)
 @click.option(
-    "--platform",
     "-p",
-    default=get_conda_platform(),
-    help="Platform to solve for.")
+    "--platform",
+    default=_get_conda_platform(),
+    help="Platform to solve for.",
+)
 @click.option(
     "--dry-run",
     default=False,
-    help="Dry Run. Doesn't Download Packages - Returns Formatted JSON of FETCH Action Packages")
+    is_flag=True,
+    help="Dry Run. Doesn't Download Packages - Returns Formatted JSON of FETCH Action Packages",
+)
 @click.option(
     "--ironbank-gen",
     default=False,
-    help="Save IronBank Resources 'ib_manifest.yaml' in current directory")
-def vendor(file,solver, platform, dry_run, ironbank_gen):
+    is_flag=True,
+    help="Save IronBank Resources 'ib_manifest.yaml' in current directory",
+)
+def vendor(
+    file: str, solver: str, platform: str, dry_run: bool, ironbank_gen: bool
+):
+    """Main entry point to vendor a file.  This will (in the general case)
+    use conda-lock to solve the environment specified in an environment_yaml
+    passed in through file parameter. After a valid solution, it will
+    download the corresponding Conda packages to a channel in
+    current_dir/environment_name.  It creates a valid repodata.json for
+    each of the Conda required subdirectories.
 
-    click.echo(click.style(f"Vendoring Local Channel for file: {file}", fg='green'))
+    Parameters
+    ----------
+    file: str
+        location of environment.yaml to solve
 
-    # handle environment.yaml
+    solver: str
+        specified Conda solver, e.g. conda, micromamba, mamba
+
+    platform: str
+        platform to vendor, e.g. linux-32, linux-64, osx-64, win-32
+
+    dry_run: bool
+        if specified just try to solve the environment and dump the solution
+        set to stdout.
+
+    ironbank_gen: bool
+        if specified create an Iron Bank resources clause (in a yaml)
+        "ib_manifest.yaml" in the current directory
+    """
+    _green(f"Vendoring Local Channel for file: {file}", bold=False)
+
+    if dry_run:
+        _red("Dry Run - Will Not Download Files")
+        package_list = solve_environment(Path(file), solver, platform)
+        _red("Dry Run Complete!")
+        click.echo(json.dumps(package_list, indent=4))
+        sys.exit(0)
+
     environment_yaml = Path(file)
 
-    # create vendored channel directory if dry_run=False
-    if not dry_run:
-        vendored_dir_path = create_vendored_dir(environment_yaml, platform)
-    else:
-        click.echo(click.style("Dry Run - Will Not Download Files", bold=True, fg='red'))
+    # find the name of the environment from the environmant.yaml
+    with open(environment_yaml, "r") as environment_file:
+        try:
+            _yaml = yaml.safe_load(environment_file)
+            environment_name = _yaml["name"]
+        except yaml.YAMLError as err:
+            click.echo(err)
+            sys.exit(
+                f"Failed to read environment name from {environment_file}"
+            )
 
-    # generate conda-locks LockSpecification
-    lock_spec = get_lock_spec_for_environment_file(environment_yaml)
+    vendored_dir_path = create_vendored_dir(environment_name, platform)
 
-    # generate DryRunInstall
-    dry_run_install = solve_environment(lock_spec, solver, platform)
+    package_list = solve_environment(environment_yaml, solver, platform)
+    hotfix_vendored_repodata_json(package_list, vendored_dir_path)
 
-    # generate List[FetchAction]
-    # a FetchAction object includes all the entries from the corresponding
-    # package's repodata.json
-    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
-
-    # generate hotfix repodata.json for each channel and subdir
-    if not dry_run:
-        hotfix_vendored_repodata_json(fetch_action_packages, vendored_dir_path)
-
-        # download and verify packages to appropriate subdir
-        download_solved_pkgs(fetch_action_packages, vendored_dir_path, platform)
-        click.echo(click.style(f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}", bold=True, fg='green'))
-
-        click.echo(click.style(f"Vendoring Complete!\nVendored Channel: {vendored_dir_path}", bold=True, fg='green'))
-    else:
-        click.echo(click.style("Dry Run Complete!", bold=True, fg='red'))
-        json_formatted_packages = json.dumps(fetch_action_packages, indent=4)
-        click.echo(click.style(json_formatted_packages, fg='green'))
+    download_packages(package_list, vendored_dir_path, platform)
+    _green(
+        f"SHA256 Checksum Validation and Solved Packages Downloads Complete for {vendored_dir_path}"
+    )
+    _green(f"Vendoring Complete!\nVendored Channel: {vendored_dir_path}")
 
     if ironbank_gen:
-        click.echo(click.style("Generating IronBank Resources Formatted Text Below:", bold=True, fg='cyan'))
-        yaml_dump_ironbank_manifest(fetch_action_packages)
+        yaml_dump_ironbank_manifest(package_list)
 
-@click.command("ironbank-gen", help="Generate Formatted Text to use in IronBank's Hardening Manifest")
+
+###########################################################################
+#                                                                         #
+#              conda-vendor ironbank_gen                                  #
+#                                                                         #
+###########################################################################
+
+
+@click.command(
+    "ironbank-gen",
+    help="Generate Formatted Text to use in IronBank's Hardening Manifest",
+)
+@click.option("-f", "--file", default=None, help="Path to environment.yaml")
 @click.option(
-    "--file",
-    default=None,
-    help="Path to environment.yaml")
-@click.option(
+    "-s",
     "--solver",
     default="conda",
-    help="Solver to use. conda, mamba, micromamba")
+    help="Solver to use. conda, mamba, micromamba",
+)
 @click.option(
     "--platform",
     "-p",
-    default=get_conda_platform(),
-    help="Platform to solve for.")
-def ironbank_gen(file, solver, platform):
-    click.echo(click.style("Generating Formatted Text for IronBank Hardening Manifest", bold=True, fg='green'))
-     # handle environment.yaml
-    environment_yaml = Path(file)
+    default=_get_conda_platform(),
+    help="Platform to solve for.",
+)
+def ironbank_gen(file: str, solver: str, platform: str):
+    """Create an Iron Bank resources clause (in a yaml) "ib_manifest.yaml" in
+    the current directory
 
-    # generate conda-locks LockSpecification
-    lock_spec = get_lock_spec_for_environment_file(environment_yaml)
+    Parameters
+    ----------
+    file: str
+        location of environment.yaml to solve
 
-    # generate DryRunInstall
-    dry_run_install = solve_environment(lock_spec, solver, platform)
+    solver: str
+        specified Conda solver, e.g. conda, micromamba, mamba
 
-    # generate List[FetchAction]
-    # a FetchAction object includes all the entries from the corresponding
-    # package's repodata.json
-    fetch_action_packages = get_fetch_actions(solver, platform, dry_run_install)
+    platform: str
+        platform to vendor, e.g. linux-32, linux-64, osx-64, win-32
 
-    yaml_dump_ironbank_manifest(fetch_action_packages)
+    """
+    package_list = solve_environment(Path(file), solver, platform)
+    yaml_dump_ironbank_manifest(package_list)
+
 
 main.add_command(vendor)
 main.add_command(ironbank_gen)

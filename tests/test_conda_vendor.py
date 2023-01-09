@@ -1,8 +1,8 @@
 from requests.adapters import urldefragauth
 from conda_vendor.conda_vendor import (
-        get_conda_platform,
-        reconstruct_repodata_json,
-        )
+    _get_conda_platform,
+    _reconstruct_repodata_json,
+)
 import pytest
 from requests import Response
 import hashlib
@@ -16,22 +16,28 @@ from yaml.loader import SafeLoader
 import os
 
 
+@patch("sys.platform", "linux")
 @patch("struct.calcsize")
-def test_get_conda_platform(mock_struct) -> None:
-    test_platform = "linux"
+def test_get_conda_platform_32bit(mock_struct) -> None:
     mock_struct.return_value = 4
     expected = "linux-32"
-    result = get_conda_platform(test_platform)
+    result = _get_conda_platform()
     assert expected == result
     assert mock_struct.call_count == 1
 
 
-def test_get_conda_platform_custom():
+@patch("sys.platform", "darwin")
+@patch("struct.calcsize")
+def test_get_conda_platform_64bi(mock_struct) -> None:
+    mock_struct.return_value = 8
+    expected = "osx-64"
+    result = _get_conda_platform()
+    assert expected == result
+    assert mock_struct.call_count == 1
+
+
+def test_get_conda_platform_passthrough():
     test_platforms = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
     expected_returns = ["linux-64", "linux-32", "win-64", "win-32", "osx-64"]
-
-    actual_returns = [get_conda_platform(custom_platform=p) for p in test_platforms]
+    actual_returns = [_get_conda_platform(p) for p in test_platforms]
     assert set(actual_returns) == set(expected_returns)
-
-
-    
