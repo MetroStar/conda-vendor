@@ -2,9 +2,10 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-# TODO: we can make this a conda package and have but that will be on the next iteration.
-# TODO: Some more work can be done on the setup requires but for now use the conda_vendor_test.yml
-# if you want to build the wheel.
+# TODO: we can make this a conda package and have but that will be on the next
+# iteration.
+# TODO: Some more work can be done on the setup requires but for now use the
+# conda_vendor_test.yml if you want to build the wheel.
 root_dir = Path(__file__).absolute().parent
 
 __version__ = None
@@ -21,10 +22,13 @@ setup(
     package_dir={"": "."},
     packages=find_packages(exclude=("tests",), where="."),
     url="https://github.com/MetroStar/conda-vendor",
-    entry_points={"console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]},
+    entry_points={
+        "console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]
+    },
     install_requires=["ruamel.yaml", "conda-lock>=1.2.1", "click"],
     setup_requires=["wheel"],
     python_requires=">=3.6",
+    include_package_data=True,
     long_description=long_description,
     long_description_content_type="text/markdown",
 )

@@ -5,16 +5,16 @@ dependencies:
   - python
   - click
   - conda-lock>=1.2.1
-  - conda-build  
+  - conda-build
   - pip
   - ruamel.yaml
   # solvers
   - conda=4.12.0
   - mamba
   - micromamba
-  # teset dependencies
+  # test dependencies
   - pytest
   - pytest-mock
   - setuptools
   - wheel
-  
+

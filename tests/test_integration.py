@@ -1,34 +1,85 @@
 import json
-import os
 import pytest
 import subprocess
-import warnings
 
 from click.testing import CliRunner
+from packaging import version
 from pathlib import Path
-from ruamel.yaml import YAML
-from unittest import TestCase
-from unittest.mock import Mock, patch
 
 from conda_vendor.conda_vendor import (
-    create_vendored_dir,
-    hotfix_vendored_repodata_json,
-    solve_environment,
-    _reconstruct_repodata_json,
+    _generate_lock_spec,
+    _get_conda_platform,
+    create_repodata_json,
     download_packages,
+    solve_environment,
+    vendor,
 )
 
-# vendor command
-from conda_vendor.conda_vendor import vendor
 
-# use python_main_defaults_environment fixture
-def test_vendor_dry_run(python_main_defaults_environment):
+environments = {
+    "minimal": """
+name: minimal_env
+channels:
+- main
+dependencies:
+- python==3.9.5
+""",
+    "conda_mirror": """name: conda_mirror
+channels:
+- main
+- conda-forge
+dependencies:
+- python==3.9.5
+- conda-mirror==0.8.2
+""",
+    "notsolvable": """name: not_solvable
+channels:
+- main
+dependencies:
+- fjdlkfjdsalfkjdsalkfjadflkdajs==100.0.0
+""",
+    "pytorch": """name: torch
+channels:
+- conda-forge
+dependencies:
+- python=3.9.*
+- pytorch
+- torchvision
+""",
+}
+
+
+@pytest.fixture(scope="function")
+def make_env(tmp_path_factory):
+    def _make_env(body, *, name: str = "test", filename: str = None):
+        if filename is None:
+            filename = f"{name}.yml"
+        f = tmp_path_factory.mktemp(name) / filename
+        f.write_text(body)
+        return f
+
+    return _make_env
+
+
+def _has_mamba():
+    try:
+        subprocess.call(["mamba", "--version"])
+        return True
+    except:
+        return False
+
+
+# dry-run install using vendored channel.
+@pytest.mark.integration
+def test_vendor_dry_run(make_env):
     runner = CliRunner()
+
+    env = make_env(environments["minimal"])
     result = runner.invoke(
         vendor,
         [
             "--file",
-            python_main_defaults_environment,
+            str(env),
             "--solver",
             "conda",
             "--platform",
@@ -37,124 +88,184 @@ def test_vendor_dry_run(python_main_defaults_environment):
         ],
     )
     assert result.exit_code == 0
-    assert "Dry Run - Will Not Download Files" in result.output
-    assert "Dry Run Complete!" in result.output
+    _json = result.output.split("Dry Run Complete!", 1)[1]
+    package_list = json.loads(_json)
 
-    json_output = result.output.split("Dry Run Complete!", 1)[1]
-    fetch_actions = json.loads(json_output)
-    assert any(pkg["name"] == "python" for pkg in fetch_actions)
-    assert not any(pkg["name"] == "tensorflow" for pkg in fetch_actions)
+    for pkg in package_list:
+        if pkg["name"] != "python":
+            continue
+
+        if version.parse(pkg["version"]) == version.parse("3.9.5"):
+            return
+
+    pytest.fail("python package not found in solution")
 
 
-# full run through and dry-run install using vendored channel
-# NOTE this test expects that 'mamba' is in your path, if you need to,
-# uncomment the skip decorator
-# @pytest.mark.skip(reason="mamba is not installed or in $PATH")
-def test_vendor_full_runthrough(
-    python_main_defaults_environment, tmp_path_factory
-):
-    warning_message = """This test will only work correctly the first time.
-
-    It seems to not respect the os.chdir(...) in the start.
-    to rerun remove the "minimal_env" subdirectory from the working
-    directory.
-    """
-
-    warnings.warn(warning_message)
-    test_path = tmp_path_factory.mktemp("full-runthrough")
-    os.chdir(test_path)
-
+# full conda vendor call. will use mamba to solve if that's available, otherwise
+# uses conda
+@pytest.mark.integration
+def test_vendor_complete(make_env):
+    solver = "mamba" if _has_mamba() else "conda"
+    env = make_env(environments["minimal"])
     runner = CliRunner()
-    vendor_result = runner.invoke(
-        vendor,
-        ["--file", python_main_defaults_environment, "--solver", "mamba"],
-    )
-    assert vendor_result.exit_code == 0
+    with runner.isolated_filesystem():
+        result = runner.invoke(vendor, ["--file", env, "--solver", solver])
+    assert result.exit_code == 0
 
 
-# test that the LockSpecification object returned from
-# get _lock_spec_for_environment_file contains the packages defined in
-# the python_conda_mirror_main_conda_forge_environment test fixture
-def test_get_lock_spec_for_environment_file(
-    python_conda_mirror_main_conda_forge_environment,
-):
-    from conda_vendor.conda_vendor import (
-        _parse_environment_file,
-        _get_conda_platform,
-    )
+# tests the LockSpecification object returned from conda-lock actually has
+# the package we specified
+@pytest.mark.integration
+def test_get_lock_spec(make_env):
+    env = make_env(environments["minimal"])
+    lock_spec = _generate_lock_spec(env, _get_conda_platform())
+    for dep in lock_spec.dependencies:
+        if dep.name != "python":
+            continue
 
-    lock_spec = _parse_environment_file(
-        python_conda_mirror_main_conda_forge_environment,
-        _get_conda_platform(),
-    )
-    assert any(
-        versioned_dep.name == "python"
-        for versioned_dep in lock_spec.dependencies
-    )
-    assert any(
-        versioned_dep.version == "3.9.5.*"
-        for versioned_dep in lock_spec.dependencies
-    )
+        if version.parse(dep.version) == version.parse("3.9.5"):
+            return
+
+    pytest.fail("python package not found in lock_spec")
 
 
-# test that solve_environment's DryRunInstall object's
-# 'success' field is True
-def test_solve_environment(python_conda_mirror_main_conda_forge_environment):
-
-    env = Path(str(python_conda_mirror_main_conda_forge_environment))
-    solution = solve_environment(
-        env,
-        "conda",
-        "linux-64",
-    )
+# tests that the solve_environment call doesn't fail.  If this doesn't solve
+# a python Exception is raised
+@pytest.mark.integration
+def test_solvable_environment(make_env):
+    env = make_env(environments["conda_mirror"])
+    solution = solve_environment(env, "conda", "linux-64")
 
 
-def test_notsolvable_environment(python_conda_failing_env):
-    env = Path(str(python_conda_failing_env))
+# tests that if the sovle_environment call does fail, an Exception is raised
+@pytest.mark.integration
+def test_notsolvable_environment(make_env):
+    env = make_env(environments["notsolvable"])
     with pytest.raises(Exception):
         solution = solve_environment(env, "conda", "linux-64")
 
 
-# this integration test runs the
-# solver to make sure reconstruct_fetch_actions converts LINK to FETCH
-def test_solve_environment_link2fetch(
-    python_conda_mirror_main_conda_forge_environment,
-):
+# tests that the LINK actions are convert to FETCH actions (happens inside
+# solve environment)
+@pytest.mark.integration
+def test_solve_environment_link2fetch(make_env):
+    expected_packages = {
+        "python": {"version": "3.9.5", "found": False},
+        "conda-mirror": {"version": "0.8.2", "found": False},
+    }
 
-    env = Path(str(python_conda_mirror_main_conda_forge_environment))
+    env = make_env(environments["conda_mirror"])
     package_list = solve_environment(env, "conda", "linux-64")
-    assert any(package["name"] == "python" for package in package_list)
-    assert any(package["version"] == "3.9.5" for package in package_list)
+
+    for p in package_list:
+        expected = expected_packages.get(p["name"])
+        if expected is None:
+            continue
+
+        if version.parse(expected["version"]) == version.parse(p["version"]):
+            expected["found"] = True
+
+    for name, val in expected_packages.items():
+        if not val["found"]:
+            pytest.fail("failed to find all the required packages")
 
 
-# this integration test runs hotfix_vendored_repodata_json
-# which subsequently calls reconstruct_repodata_json
-def test_hotfix_vendored_repodata_json(
-    python_conda_mirror_main_conda_forge_environment, tmp_path_factory
-):
-    env = Path(str(python_conda_mirror_main_conda_forge_environment))
-    temp_dir = tmp_path_factory.mktemp("test-hotfix-repodata")
-    root = create_vendored_dir(
-        "minimal_conda_forge_env", "linux-64", Path(temp_dir)
-    )
+def _make_directories(tmp_path_factory, environment_name):
+    root = tmp_path_factory.mktemp("temp") / environment_name
+    Path.mkdir(root)
+    Path.mkdir(root / "linux-64")
+    Path.mkdir(root / "noarch")
+    return root
+
+
+# tests that a repodata.json file is generated in the correct locations
+@pytest.mark.integration
+def test_creates_repodata_json(make_env, tmp_path_factory):
+    env = make_env(environments["conda_mirror"])
+
+    root = _make_directories(tmp_path_factory, "conda_mirror")
     package_list = solve_environment(env, "conda", "linux-64")
-    hotfix_vendored_repodata_json(package_list, root)
-    assert os.path.exists(f"{str(root)}/noarch/repodata.json")
-    assert os.path.exists(f"{str(root)}/linux-64/repodata.json")
+    create_repodata_json(package_list, root)
+
+    assert ((root / "linux-64") / "repodata.json").exists()
+    assert ((root / "noarch") / "repodata.json").exists()
 
 
-# this integration test runs the download_solved_pkgs fn
-def test_download_solved_pkgs(
-    python_conda_mirror_main_conda_forge_environment, tmp_path_factory
-):
-    env = Path(str(python_conda_mirror_main_conda_forge_environment))
-    temp_dir = tmp_path_factory.mktemp("test-download-target")
-    root = create_vendored_dir(
-        "minimal_conda_forge_env", "linux-64", Path(temp_dir)
-    )
+# tests that the files we expect to be downloader are downloaded
+@pytest.mark.integration
+def test_download_packages(make_env, tmp_path_factory):
+    env = make_env(environments["conda_mirror"])
+
+    root = _make_directories(tmp_path_factory, "conda_mirror")
     package_list = solve_environment(env, "conda", "linux-64")
     download_packages(package_list, root, "linux-64")
 
-    assert any(
-        "python" in pkg_fn for pkg_fn in os.listdir(f"{root}/linux-64")
+    for pkg in package_list:
+        assert ((root / pkg["subdir"]) / pkg["fn"]).exists()
+
+
+# tests that the default virtual packages work (and condtain the
+# __cuda virtual package)
+@pytest.mark.integration
+def test_solve_with_cuda_implicit(make_env):
+    env = make_env(environments["pytorch"])
+    package_list = solve_environment(env, "conda", "linux-64")
+
+    for pkg in package_list:
+        if pkg["name"] == "pytorch":
+            assert "cuda" in pkg["fn"]
+            return
+
+    pytest.fail("pytorch package not found in solution")
+
+
+# tests that we can override the virtual packages explicitly
+@pytest.mark.integration
+def test_solve_with_cuda_explicit(make_env):
+    virtual_packages = """subdirs:
+    linux-64:
+        packages:
+            __glibc: 2.28
+            __unix: 0
+            __linux: 5.15
+            __cuda: 11.2
+"""
+    env = make_env(environments["pytorch"])
+    virtual_packages_yaml = make_env(virtual_packages, name="vpckg_spec")
+
+    package_list = solve_environment(
+        env, "conda", "linux-64", virtual_packages_yaml
     )
+
+    for pkg in package_list:
+        if pkg["name"] == "pytorch":
+            assert "cuda" in pkg["fn"]
+            return
+
+    pytest.fail("pytorch package not found in solution")
+
+
+# tests that we can override the virtual packages explicitly
+@pytest.mark.integration
+def test_solve_without_cuda_explicit(make_env):
+    virtual_packages = """subdirs:
+    linux-64:
+        packages:
+            __glibc: 2.28
+            __unix: 0
+            __linux: 5.15
+"""
+    env = make_env(environments["pytorch"])
+    virtual_packages_yaml = make_env(virtual_packages, name="vpckg_spec")
+
+    package_list = solve_environment(
+        env, "conda", "linux-64", virtual_packages_yaml
+    )
+
+    for pkg in package_list:
+        if pkg["name"] == "pytorch":
+            assert "cuda" not in pkg["fn"]
+            assert "cpu" in pkg["fn"]
+            return
+
+    pytest.fail("pytorch package not found in solution")
