@@ -9,6 +9,7 @@ from pathlib import Path
 from conda_vendor.conda_vendor import (
     _generate_lock_spec,
     _get_conda_platform,
+    _get_system_virtual_packages,
     create_repodata_json,
     download_packages,
     solve_environment,
@@ -17,14 +18,15 @@ from conda_vendor.conda_vendor import (
 
 
 environments = {
-    "minimal": """
+    "minimal": """\
 name: minimal_env
 channels:
 - main
 dependencies:
 - python==3.9.5
 """,
-    "conda_mirror": """name: conda_mirror
+    "conda_mirror": """\
+name: conda_mirror
 channels:
 - main
 - conda-forge
@@ -32,19 +34,28 @@ dependencies:
 - python==3.9.5
 - conda-mirror==0.8.2
 """,
-    "notsolvable": """name: not_solvable
+    "notsolvable": """\
+name: not_solvable
 channels:
 - main
 dependencies:
 - fjdlkfjdsalfkjdsalkfjadflkdajs==100.0.0
 """,
-    "pytorch": """name: torch
+    "pytorch": """\
+name: torch
 channels:
 - conda-forge
 dependencies:
 - python=3.9.*
 - pytorch
 - torchvision
+""",
+    "tip": """\
+name: tipvendor
+channels:
+- conda-forge
+dependencies:
+- tip
 """,
 }
 
@@ -137,7 +148,7 @@ def test_solvable_environment(make_env):
     solution = solve_environment(env, "conda", "linux-64")
 
 
-# tests that if the sovle_environment call does fail, an Exception is raised
+# tests that if the solve_environment call does fail, an Exception is raised
 @pytest.mark.integration
 def test_notsolvable_environment(make_env):
     env = make_env(environments["notsolvable"])
@@ -185,7 +196,7 @@ def test_creates_repodata_json(make_env, tmp_path_factory):
 
     root = _make_directories(tmp_path_factory, "conda_mirror")
     package_list = solve_environment(env, "conda", "linux-64")
-    create_repodata_json(package_list, root)
+    create_repodata_json(package_list, root, "linux-64")
 
     assert ((root / "linux-64") / "repodata.json").exists()
     assert ((root / "noarch") / "repodata.json").exists()
@@ -198,7 +209,7 @@ def test_download_packages(make_env, tmp_path_factory):
 
     root = _make_directories(tmp_path_factory, "conda_mirror")
     package_list = solve_environment(env, "conda", "linux-64")
-    download_packages(package_list, root, "linux-64")
+    download_packages(package_list, root)
 
     for pkg in package_list:
         assert ((root / pkg["subdir"]) / pkg["fn"]).exists()
@@ -209,11 +220,21 @@ def test_download_packages(make_env, tmp_path_factory):
 @pytest.mark.integration
 def test_solve_with_cuda_implicit(make_env):
     env = make_env(environments["pytorch"])
+    expect_cuda = True  # cross platform we exect conda-lock to specify cuda
+
+    if _get_conda_platform() == "linux-64":
+        vpkgs = _get_system_virtual_packages("conda")
+        vpkg_names = [pkg["name"] for pkg in vpkgs]
+        expect_cuda = bool("__cuda" in vpkg_names)
+
     package_list = solve_environment(env, "conda", "linux-64")
 
     for pkg in package_list:
         if pkg["name"] == "pytorch":
-            assert "cuda" in pkg["fn"]
+            if expect_cuda:
+                assert "cuda" in pkg["fn"]
+            else:
+                assert "cuda" not in pkg["fn"]
             return
 
     pytest.fail("pytorch package not found in solution")
@@ -269,3 +290,22 @@ def test_solve_without_cuda_explicit(make_env):
             return
 
     pytest.fail("pytorch package not found in solution")
+
+
+# full conda vendor call. checks that the subdir repodata.json are
+# generated.  This was a bug.
+@pytest.mark.integration
+def test_vendor_tip_repodata_json_exist(make_env):
+    env = make_env(environments["tip"])
+    print(env)
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            vendor,
+            ["--file", env, "--solver", "conda", "--platform", "linux-64"],
+        )
+        tipvendor = Path.cwd() / "tipvendor"
+        assert (tipvendor / "linux-64" / "repodata.json").exists()
+        assert (tipvendor / "noarch" / "repodata.json").exists()
+
+    assert result.exit_code == 0

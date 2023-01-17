@@ -4,26 +4,31 @@
  structure of a Conda channel.  We grab the repodata for each package from
  the original source and write a condensed repodata.json only having our
  vendored packages.
- """
-import click
+"""
 import hashlib
 import json
-import requests
 import struct
 import sys
+
+from pathlib import Path
+from pprint import pformat
+from shlex import split
+from subprocess import check_output
+from typing import List, Union
+
+import click
+import requests
 import yaml
 
 from packaging import version
-from pathlib import Path
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from ruamel.yaml import YAML
-from typing import List, Union
+
 
 from conda_lock import __version__ as conda_lock_version
 from conda_lock.conda_solver import (
     DryRunInstall,
-    VersionedDependency,
     FetchAction,
 )
 from conda_lock.conda_solver import (
@@ -70,38 +75,25 @@ from conda_vendor.version import __version__
 #      timestamp: int
 #      url: str
 #      version: str
-#
-#
-#  implementation gotchas:
-#
-#  cross platform vendoring requires specifying conda virtual_packages __unix,
-#  __linux, __osx, __cuda, __glibc, etc.  so there are some shenanigans to get
-#  a sensible default virtual_package list from conda-lock.  (This is stored
-#  in a temporary directory).  After we solve, we remove all virtual_packages
-#  from the solution set.
-#
-#  the way we write repodata.json for each subdirectory will break if we
-#  vendor from multiple sources
+
+def _blue(msg: str, bold: bool = True):
+    click.echo(click.style(msg, fg="blue", bg="black", bold=bold))
 
 
-def _blue(s, bold=True):
-    click.echo(click.style(s, fg="blue", bg="black", bold=bold))
+def _cyan(msg: str, bold: bool = True):
+    click.echo(click.style(msg, fg="cyan", bg="black", bold=bold))
 
 
-def _cyan(s, bold=True):
-    click.echo(click.style(s, fg="cyan", bg="black", bold=bold))
+def _green(msg: str, bold: bool = True):
+    click.echo(click.style(msg, fg="green", bg="black", bold=bold))
 
 
-def _green(s, bold=True):
-    click.echo(click.style(s, fg="green", bg="black", bold=bold))
+def _red(msg: str, bold: bool = True):
+    click.echo(click.style(msg, fg="red", bg="black", bold=bold))
 
 
-def _red(s, bold=True):
-    click.echo(click.style(s, fg="red", bg="black", bold=bold))
-
-
-def _yellow(s, bold=True):
-    click.echo(click.style(s, fg="yellow", bg="black", bold=bold))
+def _yellow(msg: str, bold: bool = True):
+    click.echo(click.style(msg, fg="yellow", bg="black", bold=bold))
 
 
 def _generate_lock_spec(
@@ -109,6 +101,7 @@ def _generate_lock_spec(
 ) -> LockSpecification:
     # the function parameters changed in conda-lock 1.3.0
     if version.parse(conda_lock_version) < version.parse("1.3.0"):
+        # pylint: disable=no-value-for-parameter
         return parse_environment_file(environment_file)
     else:
         return parse_environment_file(environment_file, [platform])
@@ -123,19 +116,31 @@ def _get_environment_name(environment_file: Path) -> str:
 
 
 def _get_virtual_packages(
-    virtual_package_spec: Union[Path, str] = None
+    platform: str, virtual_package_spec: Union[Path, str] = None
 ) -> FakeRepoData:
     """return a fake repository object  containing the virtual packages
     specified or the conda-lock defaults if virtual_package_spec is None
-    """
 
-    if virtual_package_spec is None:
+    If we are vendoring for the same platform we are on, do not
+    specify virtual packages.
+
+    Parameters
+    ----------
+    virtual_package_spec: pathlib.Path or str
+        path to location of yaml specifying virtual packages
+
+    platform: str
+        platform to solve for virtual packages for
+    """
+    if virtual_package_spec is not None:
+        if isinstance(virtual_package_spec, str):
+            virtual_package_spec = Path(virtual_package_spec)
+        return virtual_package_repo_from_specification(virtual_package_spec)
+
+    if platform != _get_conda_platform():
         return default_virtual_package_repodata()
 
-    if isinstance(virtual_package_spec, str):
-        virtual_package_spec = Path(virtual_package_spec)
-
-    return virtual_package_repo_from_specification(virtual_package_spec)
+    return None
 
 
 def _get_query_list(lock_spec: LockSpecification) -> List[str]:
@@ -195,6 +200,40 @@ def _remove_channel(solution: DryRunInstall, channel: str):
     return solution
 
 
+def _print_solve_configuration(
+    solver: str,
+    platform: str,
+    spec: List[str],
+    virt_pkgs: FakeRepoData = None,
+):
+    _cyan(f"Using Solver: {solver}", bold=False)
+    _cyan(f"Solving for Platform: {platform}", bold=False)
+
+    _print_spec = pformat(spec, width=78, compact=True)
+    if len(_print_spec) < 70:
+        _cyan(f"Spec: {_print_spec}", bold=False)
+    else:
+        _cyan("Spec:", bold=False)
+        _cyan(f"{_print_spec}", bold=False)
+
+    if virt_pkgs:
+        virt_pkg_list = virt_pkgs.all_repodata[platform]["packages"].values()
+    else:
+        virt_pkg_list = _get_system_virtual_packages(solver)
+
+    _print_virt_pkgs = pformat(
+        [f"{pkg['name']}: {pkg['version']}" for pkg in virt_pkg_list],
+        width=78,
+        compact=True,
+    )
+
+    if len(_print_virt_pkgs) < 60:
+        _cyan(f"Virtual Packages: {_print_virt_pkgs}", bold=False)
+    else:
+        _cyan("Virtual Packages:", bold=False)
+        _cyan(f"{_print_virt_pkgs}", bold=False)
+
+
 def solve_environment(
     environment_file: Path,
     solver: str,
@@ -232,24 +271,21 @@ def solve_environment(
     # generate conda-lock's LockSpecification, this will parse the environment
     # file for us and give us more easily handled requirements.
     lock_spec = _generate_lock_spec(environment_file, platform)
-    specs = _get_query_list(lock_spec)
+    spec = _get_query_list(lock_spec)
 
-    # find virtual packages or use defaults
-    virt_pkgs = _get_virtual_packages(virtual_package_spec)
+    virt_pkgs = _get_virtual_packages(platform, virtual_package_spec)
+    _print_solve_configuration(solver, platform, spec, virt_pkgs)
+    channels = lock_spec.channels
+    if virt_pkgs:
+        channels.append(virt_pkgs.channel)
 
-    _cyan(f"Using Solver: {solver}", bold=False)
-    _cyan(f"Solving for Platform: {platform}", bold=False)
-    _cyan(f"Solving for Spec: {specs}", bold=False)
-    _cyan("Virtual Packages:", bold=False)
-    for pkg in virt_pkgs.all_repodata[platform]["packages"].values():
-        _cyan(f"    {pkg['name']}: {pkg['version']}", bold=False)
+    solution = solve_specs_for_arch(solver, channels, spec, platform)
 
-    # let conda-lock solve for the environment
-    channels = [*lock_spec.channels, virt_pkgs.channel]
-    solution = solve_specs_for_arch(solver, channels, specs, platform)
-    solution = _remove_channel(solution, virt_pkgs.channel.url)
+    if virt_pkgs:
+        solution = _remove_channel(solution, virt_pkgs.channel_url_posix)
+
     if not solution["success"]:
-        _red(f"Failed to Solve for {specs}")
+        _red(f"Failed to Solve for {spec}")
         _red(f"Using {solver} for {platform}")
         sys.exit(1)
     _green("Successfull Solve")
@@ -261,6 +297,7 @@ def solve_environment(
     return patched_solution["actions"]["FETCH"]
 
 
+# pylint: disable=line-too-long
 # see https://stackoverflow.com/questions/21371809/cleanly-setting-max-retries-on-python-requests-get-or-post-method
 def _improved_download(url: str):
     """Wrapper arround request.get() to allow for retries
@@ -283,63 +320,72 @@ def _improved_download(url: str):
     return session.get(url)
 
 
-def _reconstruct_repodata_json(
-    repodata_url: str, dest_dir: Path, package_list: List[FetchAction]
-):
-    """Given the url of a repodata.json file, walk through the package list
-    specified and grab all the metadata about the package from the specified
-    repodata.json.  Then write a new repodata.json at dest_dir/repo_data.json
-    with the given metadata.
+def _create_repodata_for_subdir(
+    subdir: str, package_list: List[FetchAction]
+) -> dict:
+    """
+    Create an in memory repodata object for the subdirectory {subdir} from the
+    list of packages supplied.  This goes out to the actual channel the
+    solution specifies and gets a copy of the channels repodata.json and uses
+    that to create the local repodata dictionary.
 
     Parameters
     ----------
-    repodata_url: str
-        location of the repodata.json describing the solved package metadata
+    subdir: str
+        subdirectory to create repodata.json for, e.g. linux-64, noarch, ...
 
-    dest_dir: pathlib.Path
-        location where the vendored packages are or will be stored.
+    package_list: List[FetchAction]
+        list of packages to vendor.  **These packages should all satisfy the
+        precondition that package["subdir"] == {subdir}**
 
-    package_list: list [ conda_lock.conda_solver.FetchAction ]
-        list of packages (and their metadata) provided by conda-lock
+    Returns
+    -------
+    dictionary object that is the structured repodata
 
     """
-    assert isinstance(dest_dir, Path)
-
     repo_data = {
-        "info": {"subdir": dest_dir.name},
+        "info": {"subdir": subdir},
         "packages": {},
         "packages.conda": {},
     }
 
-    valid_names = [pkg["fn"] for pkg in package_list]
+    channels = list(set((pkg["channel"] for pkg in package_list)))
+    for chan in channels:
+        channel_packages = [
+            pkg for pkg in package_list if pkg["channel"] == chan
+        ]
 
-    live_repodata_json = _improved_download(repodata_url).json()
-    _packages = live_repodata_json.get("packages", {})
-    _packages_dot_conda = live_repodata_json.get("packages.conda", {})
+        url = f"{chan}/repodata.json"
+        _yellow(f"Downloading {url}")
 
-    with click.progressbar(
-        length=len(_packages) + len(_packages_dot_conda),
-        label="Hotfix Patching repodata.json",
-    ) as pb:
+        live_repodata_json = _improved_download(url).json()
+        _live_pkgs = live_repodata_json.get("packages", {})
+        _live_pkgs_conda = live_repodata_json.get("packages.conda", {})
 
-        for name, entry in _packages.items():
-            if name in valid_names:
-                repo_data["packages"][name] = entry
-            pb.update(1)
+        label = url if len(url) < 30 else f"...{url[-30:]}"
+        with click.progressbar(channel_packages, label=label) as packages:
+            for pkg in packages:
+                _live_repodata = _live_pkgs.get(pkg["fn"])
+                if _live_repodata:
+                    assert repo_data["packages"].get(pkg["fn"]) is None
+                    repo_data["packages"][pkg["fn"]] = _live_repodata
+                    continue
 
-        for name, entry in _packages_dot_conda.items():
-            if name in valid_names:
-                repo_data["packages.conda"][name] = entry
-            pb.update(1)
+                _live_repodata = _live_pkgs_conda.get(pkg["fn"])
+                if _live_repodata:
+                    assert repo_data["packages.conda"].get(pkg["fn"]) is None
+                    repo_data["packages.conda"][pkg["fn"]] = _live_repodata
+                    continue
 
-    # write to destination
-    dest_file = Path(f"{dest_dir}/repodata.json")
-    with dest_file.open("w") as f:
-        json.dump(repo_data, f)
+                _red(f"unable to find package {pkg['fn']} at {url}")
+                _red(pkg)
+                sys.exit(1)
+
+    return repo_data
 
 
 def create_repodata_json(
-    package_list: List[FetchAction], vendored_root: Path
+    package_list: List[FetchAction], vendored_root: Path, platform: str
 ):
     """Go through the package_list, i.e. the solution provided by conda_lock,
     and generate a new repodata.json at vendored_root/{subdir}, where
@@ -353,52 +399,46 @@ def create_repodata_json(
 
     vendored_root: pathlib.Path
         location of the root of the new conda channel
-    """
-    channels = []
-    subdirs = []
 
+    platform: str
+        platform to vendor
+    """
+    assert isinstance(vendored_root, Path)
+
+    subdirs = [platform, "noarch"]
+
+    _blue(70 * "=")
     for pkg in package_list:
-        channels.append(pkg["channel"])
         subdirs.append(pkg["subdir"])
 
-        _blue(70 * "=")
         _yellow(f"Channel: {pkg['channel']}", bold=False)
         _yellow(f"Package: {pkg['fn']}", bold=False)
         _yellow(f"URL: {pkg['url']}", bold=False)
         _yellow(f"SHA256: {pkg['sha256']}", bold=False)
         _yellow(f"Subdirectory: {pkg['subdir']}", bold=False)
         _yellow(f"Timestamp: {pkg['timestamp']}", bold=False)
-        _blue(70 * "=")
+        click.echo()
 
-    channels = list(set(channels))
+    _blue(70 * "=")
+
     subdirs = list(set(subdirs))
-
-    # patch repodata.json for each channel + subdir
-
-    # this monstrosity just calls reconstruct_repodata for each subdir like
-    # "noarch" , "osx-64", "linux-64", with each channel like
-    # https://conda-forge/blah/osx-64 or
-    #  file:///usr/share/blah/local-channel/osx-64 we decide if they mach if
-    # subdir is a substring of the channel
-    #
-    # TODO: This will break if we try to vendor from more than 1 channel
     for subdir in subdirs:
-        for channel in (ch for ch in channels if subdir in ch):
-            _red(
-                f"Reconstructing repodata.json with Hotfix for {subdir} using {channel}/repodata.json"
-            )
-            _reconstruct_repodata_json(
-                f"{channel}/repodata.json",
-                vendored_root / subdir,
-                package_list,
-            )
+        repo_data = _create_repodata_for_subdir(
+            subdir,
+            [pkg for pkg in package_list if pkg["subdir"] == subdir],
+        )
+
+        # write to destination
+        dest_file = vendored_root / subdir / "repodata.json"
+        with dest_file.open("w") as f:
+            json.dump(repo_data, f)
+
+    _blue(70 * "=")
 
 
 # TODO: download and checksum in chunks
 # https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests
-def download_packages(
-    package_list: List[FetchAction], vendored_root: Path, platform: str
-):
+def download_packages(package_list: List[FetchAction], vendored_root: Path):
     """For each Conda package specified in package_list.  Fetch the binary
     from the url (in the metadata).  Calculate the checksum and verify
     it with the provided checksum.
@@ -410,10 +450,6 @@ def download_packages(
 
     vendored_root: pathlib.Path
         location of the root of the new conda channel
-
-    platform: str
-        platform to vendor: e.g. linux-64, osx-32, etc.
-
     """
     assert isinstance(vendored_root, Path)
     _green("Downloading and Verifying SHA256 Checksums for Solved Packages")
@@ -470,9 +506,9 @@ def yaml_dump_ironbank_manifest(package_list: List[FetchAction]):
 
         resources["resources"].append(resource)
 
-    yaml = YAML()
+    yaml_ = YAML()
     with open("ib_manifest.yaml", "w") as f:
-        ironbank_resources = yaml.dump(resources, f)
+        yaml_.dump(resources, f)
     _green("Iron Bank resources list written to ib_manifest.yaml")
 
 
@@ -487,7 +523,7 @@ def yaml_dump_ironbank_manifest(package_list: List[FetchAction]):
 @click.version_option(__version__)
 def main() -> None:
     """Display help and usage for subcommands, use: conda-vendor [COMMAND] --help"""
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 # see https://github.com/conda/conda/blob/248741a843e8ce9283fa94e6e4ec9c2fafeb76fd/conda/base/context.py#L51
@@ -518,6 +554,32 @@ def _get_conda_platform(platform=None) -> str:
     }
 
     return f"{_platform_map[platform]}-{bits}"
+
+
+def _get_system_virtual_packages(solver: str) -> List[dict]:
+    """Get a list of the systems virtual packages
+
+    Parameters
+    ----------
+    solver: str
+        solver to use.  conda, mamba, etc.
+
+    Returns
+    -------
+    list[dict]
+        a list of virtual packages as a dictionary having keys name, version,
+        and build_string
+    """
+
+    conda_info = check_output(split(f"{solver} info --json"), text=True)
+    _json = json.loads(conda_info)
+    virtual_packages = []
+    for pkg in _json.get("virtual_pkgs", []):
+        virtual_packages.append(
+            {"name": pkg[0], "version": pkg[1], "build_string": pkg[2]}
+        )
+
+    return virtual_packages
 
 
 ###########################################################################
@@ -563,6 +625,7 @@ def _get_conda_platform(platform=None) -> str:
     is_flag=True,
     help="Save IronBank Resources 'ib_manifest.yaml' in current directory",
 )
+# pylint: disable=too-many-arguments
 def vendor(
     file: str,
     solver: str,
@@ -631,11 +694,11 @@ def vendor(
         click.echo(json.dumps(package_list, indent=4))
         sys.exit(0)
 
-    create_repodata_json(package_list, vendored_root)
-    download_packages(package_list, vendored_root, platform)
+    create_repodata_json(package_list, vendored_root, platform)
+    download_packages(package_list, vendored_root)
 
-    _green(f"SHA256 Checksum Validation and Packages Downloaded")
-    _green(f"Vendoring Complete!")
+    _green("SHA256 Checksum Validation and Packages Downloaded")
+    _green("Vendoring Complete!")
     _green(f"Vendored Channel: {vendored_root}")
 
     if ironbank_gen:
@@ -720,20 +783,12 @@ def ironbank_gen(
     help="name of file to write.  Default is stdout.",
 )
 def virtual_packages(solver, output):
-    from subprocess import check_output
-    from shlex import split
 
-    conda_info = check_output(split(f"{solver} info --json"), text=True)
-    _json = json.loads(conda_info)
-
-    packages = _json.get("virtual_pkgs", [])
-    if len(packages) == 0:
-        _red("Unable to find virtual packages")
-        sys.exit(1)
+    virtual_packages = _get_system_virtual_packages(solver)
 
     package_list = {}
-    for pkg in packages:
-        package_list[pkg[0]] = pkg[1]
+    for pkg in virtual_packages:
+        package_list[pkg["name"]] = pkg["version"]
 
     virtual_packages_dict = {
         "subdirs": {f"{_get_conda_platform()}": {"packages": package_list}}

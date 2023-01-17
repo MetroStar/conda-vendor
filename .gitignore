@@ -4,3 +4,5 @@ conda_vendor.egg-info/
 /build
 /conda-vendor-dependencies
 .envrc
+*.sw?
+\.DS_Store

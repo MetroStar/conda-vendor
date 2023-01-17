@@ -31,7 +31,7 @@ from conda_vendor.conda_vendor import (
     create_repodata_json,
     download_packages,
     solve_environment,
-    yaml_dump_ironbank_manifest
+    yaml_dump_ironbank_manifest,
 )
 
 
@@ -118,14 +118,14 @@ dependencies:
 @patch("conda_vendor.conda_vendor.default_virtual_package_repodata")
 def test_get_virtual_packages_default(mock_default_virtual_package_repodata):
     mock_default_virtual_package_repodata.return_value = True
-    p = _get_virtual_packages()
+    p = _get_virtual_packages("fake-64")
     mock_default_virtual_package_repodata.assert_called_once()
 
 
 @patch("conda_vendor.conda_vendor.virtual_package_repo_from_specification")
 def test_get_virtual_packages_str(mock_virtual_package_repodata_from_spec):
     mock_virtual_package_repodata_from_spec.return_value = True
-    p = _get_virtual_packages("test.yml")
+    p = _get_virtual_packages("fake-64", "test.yml")
     mock_virtual_package_repodata_from_spec.assert_called_once()
     args = mock_virtual_package_repodata_from_spec.call_args.args
     assert isinstance(args[0], Path)
@@ -134,7 +134,7 @@ def test_get_virtual_packages_str(mock_virtual_package_repodata_from_spec):
 @patch("conda_vendor.conda_vendor.virtual_package_repo_from_specification")
 def test_get_virtual_packages_path(mock_virtual_package_repodata_from_spec):
     mock_virtual_package_repodata_from_spec.return_value = True
-    p = _get_virtual_packages(Path("test.yml"))
+    p = _get_virtual_packages("fake-64", Path("test.yml"))
     mock_virtual_package_repodata_from_spec.assert_called_once()
     args = mock_virtual_package_repodata_from_spec.call_args.args
     assert isinstance(args[0], Path)
@@ -231,7 +231,7 @@ def test_remove_channel_download(
         return response
 
     mock_improved_download.side_effect = _mock_download
-    download_packages(solution, download_root, "linux-64")
+    download_packages(solution, download_root)
 
 
 #####################################################################
@@ -243,12 +243,29 @@ def test_remove_channel_download(
 def pytorch_environment(tmp_path_factory):
     f = tmp_path_factory.mktemp("pytorch_env") / "environment.yml"
     f.write_text(
-        """name: pytorch_env
+        """\
+name: pytorch_env
 channels:
 - conda-forge
 dependencies:
 - pytorch
 - torchvision
+"""
+    )
+    return f
+
+
+@pytest.fixture
+def linux_64_virtual_packages(tmp_path_factory):
+    f = tmp_path_factory.mktemp("vpkgs") / "virtual_packages.yml"
+    f.write_text(
+        """\
+subdirs:
+  linux-64:
+    packages:
+      __glibc: 2.28
+      __unix: 0
+      __linux: 5.15
 """
     )
     return f
@@ -299,6 +316,7 @@ def test_reconstruct_fetch_actions(
     mock_remove_channel,
     pytorch_environment,
     pytorch_solution,
+    linux_64_virtual_packages,
 ):
 
     # this corresponds to the virtual packages that were made for the file
@@ -325,7 +343,9 @@ def test_reconstruct_fetch_actions(
 
     # looking_for {pkgs_dirs}/dummy_packages0-0/info/repodata_record.json
     _create_repodata_record_json()
-    solution = solve_environment(pytorch_environment, "conda", "linux-64")
+    solution = solve_environment(
+        pytorch_environment, "conda", "linux-64", linux_64_virtual_packages
+    )
 
     assert "dummy_package" in [pkg["name"] for pkg in solution]
 
@@ -363,7 +383,9 @@ def test_create_repodata_json(
 ):
 
     mock_download.return_value = create_repodata_output
-    create_repodata_json(create_repodata_input["FETCH"], download_root)
+    create_repodata_json(
+        create_repodata_input["FETCH"], download_root, "linux-64"
+    )
 
     with open(download_root / "linux-64" / "repodata.json", "r") as f:
         repodata = json.load(f)
@@ -376,6 +398,36 @@ def test_create_repodata_json(
 
     for pkg in create_repodata_input["FETCH"]:
         assert pkg["name"] in repodata_packages
+
+
+@patch("conda_vendor.conda_vendor._improved_download")
+def test_create_repodata_json_both_subdir_empty(
+    mock_download,
+    create_repodata_output,
+    download_root,
+):
+    mock_download.return_value = create_repodata_output
+    create_repodata_json([], download_root, "linux-64")
+
+    assert (download_root / "linux-64" / "repodata.json").exists()
+    assert (download_root / "noarch" / "repodata.json").exists()
+
+
+@patch("conda_vendor.conda_vendor._improved_download")
+def test_create_repodata_json_noarch_subdir_empty(
+    mock_download,
+    create_repodata_input,
+    create_repodata_output,
+    download_root,
+):
+
+    mock_download.return_value = create_repodata_output
+    create_repodata_json(
+        create_repodata_input["FETCH"], download_root, "linux-64"
+    )
+
+    assert (download_root / "linux-64" / "repodata.json").exists()
+    assert (download_root / "noarch" / "repodata.json").exists()
 
 
 #####################################################################
@@ -437,7 +489,7 @@ def test_download_packages(
         return response
 
     mock_download.side_effect = _mock_download
-    download_packages(packages, download_root, "linux-64")
+    download_packages(packages, download_root)
 
     for pkg in packages:
         loc = download_root / "linux-64" / pkg["fn"]
@@ -470,7 +522,7 @@ def test_download_packages_bad_sha(
     mock_download.side_effect = _mock_download
 
     with pytest.raises(SystemExit) as e:
-        download_packages(packages[:1], download_root, "linux-64")
+        download_packages(packages[:1], download_root)
 
         assert e.type == SystemExit
         assert e.value.code == 1
@@ -498,7 +550,7 @@ def test_download_packages_404(
 
     mock_download.side_effect = _mock_download
     with pytest.raises(SystemExit) as e:
-        download_packages(packages[:1], download_root, "linux-64")
+        download_packages(packages[:1], download_root)
 
         assert e.type == SystemExit
         assert e.value.code == 1
@@ -518,7 +570,7 @@ def test_download_packages_bad_url(
 
     mock_download.side_effect = _mock_download
     with pytest.raises(Exception):
-        download_packages(packages[:1], download_root, "linux-64")
+        download_packages(packages[:1], download_root)
         assert True
 
 
@@ -526,11 +578,14 @@ def test_download_packages_bad_url(
 # test yaml_dump_ironbank_manifest
 #####################################################################
 
-#remove virtual packages from th pytorch solution
+# remove virtual packages from th pytorch solution
 @pytest.fixture
 def pytorch_solution_clean(pytorch_solution):
-    chan = "file:///var/folders/r0/7mmzfzr15cjbl3qyzjgr8pzw0000gt/T/tmp1le4_9n8"
-    return  _remove_channel(pytorch_solution, chan)["actions"]["FETCH"]
+    chan = (
+        "file:///var/folders/r0/7mmzfzr15cjbl3qyzjgr8pzw0000gt/T/tmp1le4_9n8"
+    )
+    return _remove_channel(pytorch_solution, chan)["actions"]["FETCH"]
+
 
 @contextmanager
 def set_cwd(new_dir):
@@ -541,8 +596,12 @@ def set_cwd(new_dir):
     finally:
         os.chdir(cur)
 
-def test_yaml_dump_ironbank_manifest(pytorch_solution_clean, tmp_path_factory):
+
+def test_yaml_dump_ironbank_manifest(
+    pytorch_solution_clean, tmp_path_factory
+):
     import os
+
     cur = os.getcwd()
 
     package_list = pytorch_solution_clean
@@ -553,9 +612,9 @@ def test_yaml_dump_ironbank_manifest(pytorch_solution_clean, tmp_path_factory):
         with open("ib_manifest.yaml", "r") as f:
             ib_manifest = yaml.load(f, Loader=yaml.SafeLoader)
 
-        expected_packages = set([pkg["fn"] for pkg in package_list ])
-        actual_packages = set([pkg["filename"] for pkg in ib_manifest["resources"]])
+        expected_packages = set([pkg["fn"] for pkg in package_list])
+        actual_packages = set(
+            [pkg["filename"] for pkg in ib_manifest["resources"]]
+        )
 
         assert expected_packages == actual_packages
-
-

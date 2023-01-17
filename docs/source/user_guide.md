@@ -41,8 +41,8 @@ in the `conda_lock.virtual_package` module.
 
 **note: If no platform option is supplied to `conda-vendor`, it will use the
 host platform as if it were supplied explicitly.  This means that
-`conda-vendor` will use the default set of *virutal packages* specified by
-`conda-lock`, and so the *virtual packages* might not be correct for the host.
+`conda-vendor` will use the hosts set of *virtual packages*, and so the
+ *virtual packages* might not be correct for the target system.
 To ensure a correct solution supply the virtual packages explictly as
 explaineed below.**
 
