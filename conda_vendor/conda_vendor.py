@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from pprint import pformat
 from shlex import split
+from shutil import which
 from subprocess import check_output
 from typing import List, Union
 
@@ -35,6 +36,7 @@ from conda_lock.conda_solver import (
     _reconstruct_fetch_actions as reconstruct_fetch_actions,
 )
 from conda_lock.conda_solver import solve_specs_for_arch
+from conda_lock.invoke_conda import is_micromamba
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.virtual_package import (
@@ -75,6 +77,7 @@ from conda_vendor.version import __version__
 #      timestamp: int
 #      url: str
 #      version: str
+
 
 def _blue(msg: str, bold: bool = True):
     click.echo(click.style(msg, fg="blue", bg="black", bold=bold))
@@ -170,7 +173,9 @@ def _get_query_list(lock_spec: LockSpecification) -> List[str]:
     return specs
 
 
-def _remove_channel(solution: DryRunInstall, channel: str):
+def _remove_channel(
+    solution: DryRunInstall, channel: str, solver: str = "conda"
+):
     """Filter a conda-lock solution and remove any packages from the specified
     channel.
 
@@ -181,6 +186,10 @@ def _remove_channel(solution: DryRunInstall, channel: str):
 
     channel: str
         the channel to remove.
+
+    solver: str
+        which solver to use.  Micromamba has a different form for "LINK" actions
+        than conda or mamba
     """
     fetch = []
     link = []
@@ -190,10 +199,16 @@ def _remove_channel(solution: DryRunInstall, channel: str):
             continue
         fetch.append(entry)
 
-    for entry in solution["actions"]["LINK"]:
-        if entry["base_url"] == channel:
-            continue
-        link.append(entry)
+    if not is_micromamba(solver):
+        for entry in solution["actions"]["LINK"]:
+            if entry["base_url"] == channel:
+                continue
+            link.append(entry)
+    else:
+        for entry in solution["actions"]["LINK"]:
+            if entry["channel"].startswith(channel):
+                continue
+            link.append(entry)
 
     solution["actions"]["FETCH"] = fetch
     solution["actions"]["LINK"] = link
@@ -250,7 +265,7 @@ def solve_environment(
         path to the environment.yaml to solve
 
     solver: str
-        which conda is used to solve: conda, miniconda, mamba, etc.
+        which conda is used to solve: conda, mamba, micromamba, etc.
 
     platform: str
         platform to vendor for: eg. linux-32, win-64, osx-64, etc.
@@ -282,7 +297,9 @@ def solve_environment(
     solution = solve_specs_for_arch(solver, channels, spec, platform)
 
     if virt_pkgs:
-        solution = _remove_channel(solution, virt_pkgs.channel_url_posix)
+        solution = _remove_channel(
+            solution, virt_pkgs.channel_url_posix, solver
+        )
 
     if not solution["success"]:
         _red(f"Failed to Solve for {spec}")
@@ -574,12 +591,32 @@ def _get_system_virtual_packages(solver: str) -> List[dict]:
     conda_info = check_output(split(f"{solver} info --json"), text=True)
     _json = json.loads(conda_info)
     virtual_packages = []
-    for pkg in _json.get("virtual_pkgs", []):
-        virtual_packages.append(
-            {"name": pkg[0], "version": pkg[1], "build_string": pkg[2]}
-        )
 
+    if not is_micromamba(solver):
+        for pkg in _json.get("virtual_pkgs", []):
+            virtual_packages.append(
+                    {"name": pkg[0], "version": pkg[1], "build_string": pkg[2]}
+                    )
+    else:
+        for pkg in _json.get("virtual packages", []):
+            pkg = pkg.split("=")
+            virtual_packages.append(
+                    {"name": pkg[0], "version": pkg[1], "build_string": pkg[2]}
+                    )
     return virtual_packages
+
+
+def _validate_solver(solver: str):
+    """make sure we have an actual binary to solve with
+
+    Parameters
+    ----------
+    solver: str
+        solver to use e.g. conda, mamba, micromamba
+    """
+    if which(solver) is None:
+        _red(f"Unable to find {solver} on PATH.")
+        sys.exit(1)
 
 
 ###########################################################################
@@ -672,6 +709,7 @@ def vendor(
 
     environment_file = Path(file)
     environment_name = _get_environment_name(environment_file)
+    _validate_solver(solver)
 
     vendored_root = Path.cwd() / environment_name
     if vendored_root.exists():
@@ -759,6 +797,7 @@ def ironbank_gen(
         where conda-lock is run it will use that file.
         see (https://github.com/conda-incubator/conda-lock).
     """
+    _validate_solver(solver)
     package_list = solve_environment(
         Path(file), solver, platform, virtual_package_spec
     )
@@ -783,7 +822,7 @@ def ironbank_gen(
     help="name of file to write.  Default is stdout.",
 )
 def virtual_packages(solver, output):
-
+    _validate_solver(solver)
     virtual_packages = _get_system_virtual_packages(solver)
 
     package_list = {}

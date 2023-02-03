@@ -25,9 +25,17 @@ setup(
     entry_points={
         "console_scripts": ["conda-vendor = conda_vendor.__main__:cli"]
     },
-    install_requires=["ruamel.yaml", "conda-lock>=1.2.1", "click"],
-    setup_requires=["wheel"],
-    python_requires=">=3.6",
+    install_requires=[
+        "click",
+        "conda-lock>=1.2.1",
+        "packaging",
+        "requests",
+        "ruamel.yaml",
+        "setuptools>=43",
+        "pyyaml",
+    ],
+    setup_requires=["setuptools>=43", "wheel"],
+    python_requires=">=3.7",
     include_package_data=True,
     long_description=long_description,
     long_description_content_type="text/markdown",

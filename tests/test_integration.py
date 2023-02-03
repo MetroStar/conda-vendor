@@ -17,6 +17,18 @@ from conda_vendor.conda_vendor import (
 )
 
 
+def _has_solver(solver: str):
+    try:
+        subprocess.call([solver, "--version"])
+        return True
+    except:
+        return False
+
+
+has_mamba = _has_solver("mamba")
+has_micromamba = _has_solver("micromamba")
+
+
 environments = {
     "minimal": """\
 name: minimal_env
@@ -72,14 +84,6 @@ def make_env(tmp_path_factory):
     return _make_env
 
 
-def _has_mamba():
-    try:
-        subprocess.call(["mamba", "--version"])
-        return True
-    except:
-        return False
-
-
 # dry-run install using vendored channel.
 @pytest.mark.integration
 def test_vendor_dry_run(make_env):
@@ -112,15 +116,35 @@ def test_vendor_dry_run(make_env):
     pytest.fail("python package not found in solution")
 
 
-# full conda vendor call. will use mamba to solve if that's available, otherwise
-# uses conda
+# full conda vendor call.
 @pytest.mark.integration
-def test_vendor_complete(make_env):
-    solver = "mamba" if _has_mamba() else "conda"
+def test_vendor_complete_conda(make_env):
     env = make_env(environments["minimal"])
     runner = CliRunner()
     with runner.isolated_filesystem():
-        result = runner.invoke(vendor, ["--file", env, "--solver", solver])
+        result = runner.invoke(vendor, ["--file", env, "--solver", "conda"])
+    assert result.exit_code == 0
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not has_mamba, reason="mamba was not detected")
+def test_vendor_complete_mamba(make_env):
+    env = make_env(environments["minimal"])
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(vendor, ["--file", env, "--solver", "mamba"])
+    assert result.exit_code == 0
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not has_micromamba, reason="micromamba was not detected")
+def test_vendor_complete_micromamba(make_env):
+    env = make_env(environments["minimal"])
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            vendor, ["--file", env, "--solver", "micromamba"]
+        )
     assert result.exit_code == 0
 
 
