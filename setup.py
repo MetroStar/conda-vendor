@@ -27,7 +27,7 @@ setup(
     },
     install_requires=[
         "click",
-        "conda-lock>=1.2.1",
+        "conda-lock==1.4.0",
         "packaging",
         "requests",
         "ruamel.yaml",

@@ -5,7 +5,8 @@ dependencies:
   - python>=3.7
   - pip
   - click
-  - conda-lock>=1.2.1
+  - conda-lock=1.4.0
+  - crashtest==0.4.1
   - packaging
   - requests
   - ruamel.yaml
