@@ -7,6 +7,7 @@ dependencies:
   - conda-lock=1.1.2
   - conda-build
   - pip
+  - pydantic=1.8.1
   # solvers
   - conda=4.12.0
   - mamba
