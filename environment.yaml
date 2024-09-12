@@ -4,8 +4,8 @@ channels:
 dependencies:
   - python
   - click
-  - conda-lock=1.*
-  - conda-build  
+  - conda-lock=1.1.2
+  - conda-build
   - pip
   # solvers
   - conda=4.12.0
@@ -16,10 +16,3 @@ dependencies:
   - pytest-mock
   - setuptools
   - wheel
-   
-
-
-
-
-
-
