@@ -5,16 +5,16 @@ on:
 
 jobs:
   test-general:
-    name: 'conda-vendor tests'
+    name: "conda-vendor tests"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.8, 3.9]
 
     steps:
-      - name: 'Checkout condan-vendor'
+      - name: "Checkout condan-vendor"
         uses: actions/checkout@main
-      - name: 'Install  conda dependencies'
+      - name: "Install  conda dependencies"
         uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.python-version }}
