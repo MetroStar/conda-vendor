@@ -49,9 +49,10 @@ def test_vendor_full_runthrough(python_main_defaults_environment, tmp_path_facto
 # get _lock_spec_for_environment_file contains the packages defined in
 # the python_conda_mirror_main_conda_forge_environment test fixture
 def test_get_lock_spec_for_environmen_file(python_conda_mirror_main_conda_forge_environment):
-    lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment)
-    assert any(versioned_dep.name == 'python' for versioned_dep in lock_spec.dependencies)
-    assert any(versioned_dep.version == '3.9.5.*' for versioned_dep in lock_spec.dependencies)
+    platform = 'linux-64'
+    lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment, platform)
+    assert any(versioned_dep.name == 'python' for versioned_dep in lock_spec.dependencies[platform])
+    assert any(versioned_dep.version == '3.9.5.*' for versioned_dep in lock_spec.dependencies[platform])
 
 # test that solve_environment's DryRunInstall object's 
 # 'success' field is True

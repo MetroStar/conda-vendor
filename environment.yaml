@@ -2,17 +2,15 @@ name: conda-vendor-dependencies
 channels:
   - conda-forge
 dependencies:
-  - python
+  - python>=3.8
   - click
-  - conda-lock=1.1.2
+  - conda-lock=2.1.1
   - conda-build
   - pip
-  - pydantic=1.8.1
-  # solvers
-  - conda=4.12.0
+  - pydantic=1.10.17
+  - conda
   - mamba
   - micromamba
-  # teset dependencies
   - pytest
   - pytest-mock
   - setuptools

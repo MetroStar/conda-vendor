@@ -63,7 +63,7 @@ dependencies:
 # conda-locks LockSpecification object
 @pytest.fixture(scope="function")
 def lock_spec_fixture(python_conda_mirror_main_conda_forge_environment) -> LockSpecification:
-    lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment)
+    lock_spec = get_lock_spec_for_environment_file(python_conda_mirror_main_conda_forge_environment, "linux-64")
     return lock_spec
 
 # conda-lock's DryRunInstall object
