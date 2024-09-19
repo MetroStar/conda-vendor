@@ -16,8 +16,12 @@ from requests.adapters import HTTPAdapter
 from conda_build import api
 from conda_vendor.iron_bank_generator import yaml_dump_ironbank_manifest
 
-def get_lock_spec_for_environment_file(environment_file) -> LockSpecification:
-    lock_spec = CondaLockWrapper.parse_environment_file(environment_file)
+def get_lock_spec_for_environment_file(environment_file, platform) -> LockSpecification:
+    # conda lock expects a list
+    if isinstance(platform, str):
+        platform = [platform]
+
+    lock_spec = CondaLockWrapper.parse_environment_file(environment_file, platform)
     return lock_spec
 
 
@@ -92,7 +96,7 @@ def _scrub_virtual_pkgs(dry_run_install, chan):
     return dry_run_install
 
 def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
-    specs = get_specs(lock_spec)
+    specs = get_specs(lock_spec, platform)
 
     click.echo(click.style(f"Using Solver: {solver}", bold=True, bg='black', fg='cyan'))
     click.echo(click.style(f"Solving for Platform: {platform}", bold=True, bg='black', fg='cyan'))
@@ -118,8 +122,8 @@ def solve_environment(lock_spec, solver, platform) -> DryRunInstall:
 
 
 # get formatted List(str) to pass to CondaLockWrapper.solve_specs_for_arch()
-def get_specs(lock_spec) -> List[str]:
-    versioned_deps = lock_spec.dependencies
+def get_specs(lock_spec, platform) -> List[str]:
+    versioned_deps = lock_spec.dependencies[platform]
     specs = []
     for dep in versioned_deps:
         if dep.version == '':
@@ -288,7 +292,7 @@ def vendor(file,solver, platform, dry_run, ironbank_gen):
         click.echo(click.style("Dry Run - Will Not Download Files", bold=True, fg='red'))
 
     # generate conda-locks LockSpecification
-    lock_spec = get_lock_spec_for_environment_file(environment_yaml)
+    lock_spec = get_lock_spec_for_environment_file(environment_yaml, platform)
 
     # generate DryRunInstall
     dry_run_install = solve_environment(lock_spec, solver, platform)
