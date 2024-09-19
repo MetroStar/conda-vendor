@@ -21,7 +21,7 @@ def get_lock_spec_for_environment_file(environment_file, platform) -> LockSpecif
     if isinstance(platform, str):
         platform = [platform]
 
-    lock_spec = CondaLockWrapper.parse_environment_file(environment_file, platform)
+    lock_spec = CondaLockWrapper.parse_environment_file(Path(environment_file), platform)
     return lock_spec
 
 

@@ -1,10 +1,10 @@
-import pkg_resources
+import importlib.metadata
 
 from conda_vendor.conda_vendor import main
 
 __all__ = ["main"]
 
 try:
-    __version__ = pkg_resources.get_distribution("conda_vendor").version
+    __version__ = importlib.metadata.version("conda_vendor")
 except Exception:
     __version__ = "unknown"

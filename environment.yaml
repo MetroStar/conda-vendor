@@ -4,10 +4,10 @@ channels:
 dependencies:
   - python>=3.8
   - click
-  - conda-lock=2.1.1
+  - conda-lock=2.5.7
   - conda-build
   - pip
-  - pydantic=1.10.17
+  - pydantic
   - conda
   - mamba
   - micromamba
