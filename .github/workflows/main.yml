@@ -1,16 +1,15 @@
 name: "Release"
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch: {}
+  release:
+    types: [published]
 
 jobs:
   release:
-    name: 'PyPi 🐍  Release 🐍 '
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout Infrastructure'
+      - name: "Checkout Infrastructure"
         uses: actions/checkout@main
       - name: Set up Python
         uses: actions/setup-python@v2
